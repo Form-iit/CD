@@ -30,10 +30,6 @@ resource "aws_route_table_association" "public_subnet_assocTo_route_table" {
   route_table_id = aws_route_table.public_route_table.id
 }
 
-output "public_subnet_id" {
-  value = aws_subnet.public_subnet.id
-}
-
 output "public_subnet_cidr_block" {
   value = aws_subnet.public_subnet.cidr_block
 }

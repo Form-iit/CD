@@ -43,6 +43,5 @@ output "nat_instance_id" {
 
 
 output "nat_instance_ip" {
-  value = aws_instance.nat_instance.public_ip
-  sensitive = true
+  value     = aws_instance.nat_instance.public_ip
 }
