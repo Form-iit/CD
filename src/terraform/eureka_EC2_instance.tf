@@ -7,7 +7,7 @@ resource "aws_instance" "eureka_EC2" {
   vpc_security_group_ids = [aws_security_group.eureka_security_group.id]
 
   tags = {
-    Name = "PrivateFreeTierInstance"
+    Name = "Eureka-instance"
   }
 
   # Root Block Device (free tier allows up to 30 GB of SSD storage)
