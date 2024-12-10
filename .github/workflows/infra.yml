@@ -30,7 +30,7 @@ jobs:
       
       - name: Terraform Apply
         working-directory: ./src/terraform
-        run: terraform apply -auto-approve
+        run: terraform apply -var="ec2_public_SSH_key=${{ secrets.PUBLIC_SSH_KEY }}" -auto-approve
       
       - name: Generate Terraform Outputs
         run: terraform output -json > terraform_outputs.json
