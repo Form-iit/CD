@@ -1,10 +1,10 @@
 # Create an EC2 instance
-resource "aws_instance" "free_tier_private_instance" {
+resource "aws_instance" "eureka_EC2" {
   ami           = "ami-02a0945ba27a488b7" # # Amazon Linux 2 AMI ID for eu-north-1
-  instance_type = "t3.micro"                     # Free-tier eligible instance type
+  instance_type = "t3.micro"              # Free-tier eligible instance type
 
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+  vpc_security_group_ids = [aws_security_group.eureka_security_group.id]
 
   tags = {
     Name = "PrivateFreeTierInstance"
@@ -20,12 +20,6 @@ resource "aws_instance" "free_tier_private_instance" {
   associate_public_ip_address = false
 }
 
-output "private_instance_id" {
-  value = aws_instance.free_tier_private_instance.id
-}
-
-
-output "private_instance_ip" {
-  value = aws_instance.free_tier_private_instance.public_ip
-  sensitive = true
+output "eureka_instance_ip" {
+  value = aws_instance.eureka_EC2.private_ip
 }
