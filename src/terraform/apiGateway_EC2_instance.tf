@@ -1,10 +1,3 @@
-
-# Create a key pair for SSH access on EC2 instance
-resource "aws_key_pair" "my_key" {
-  key_name   = "my-key-pair"
-  public_key = file("~/.ssh/test-aws/id_rsa.pub") # Path to public ssh key
-}
-
 # Create an EC2 instance
 resource "aws_instance" "Api_gateway_instance" {
   ami           = "ami-02a0945ba27a488b7" # Amazon Linux 2 AMI ID for eu-north-1
