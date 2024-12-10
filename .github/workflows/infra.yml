@@ -1,0 +1,44 @@
+name: Infrastructure Deployment
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+
+  # Trigger on new releases
+  release:
+    types: [created] # Triggers when a new release is created
+
+jobs:
+  terraform-provision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: none
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Go into source directory
+        run: cd src/
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+      
+      - name: Generate Terraform Outputs
+        run: terraform output -json > terraform_outputs.json
+      
+      - name: Upload Terraform Outputs
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-outputs
+          path: terraform_outputs.json
+          retention-days: 1
