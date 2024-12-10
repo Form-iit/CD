@@ -23,14 +23,13 @@ jobs:
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
-
-      - name: Go into source directory
-        run: cd src/terraform
       
       - name: Terraform Init
+        working-directory: ./src/terraform
         run: terraform init
       
       - name: Terraform Apply
+        working-directory: ./src/terraform
         run: terraform apply -auto-approve
       
       - name: Generate Terraform Outputs
