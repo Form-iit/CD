@@ -1,11 +1,11 @@
 terraform {
-  cloud { 
+  /*  cloud { 
     organization = "Form-iit" 
 
     workspaces { 
       name = "github-actions-pipeline" 
     } 
-  } 
+  }  */
 
   required_providers {
     aws = {
