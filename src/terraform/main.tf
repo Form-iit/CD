@@ -5,7 +5,7 @@ terraform {
     workspaces { 
       name = "github-actions-pipeline" 
     } 
-  } 
+  }
 
   required_providers {
     aws = {

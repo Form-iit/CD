@@ -3,7 +3,9 @@ name: Infrastructure Deployment
 on:
   # Manual trigger
   workflow_dispatch:
-
+  pull_request: 
+    branches: "*"
+    types: [opened]
   # Trigger on new releases
   release:
     types: [created] # Triggers when a new release is created
@@ -11,39 +13,50 @@ on:
 jobs:
   terraform-provision:
     runs-on: ubuntu-latest
+    
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-    steps:
-      - uses: actions/checkout@v3
+      TF_CLOUD_ORGANIZATION: "Form-iit"
+      TF_API_TOKEN: "${{ secrets.TF_CLOUD_API_TOKEN }}"
+      TF_WORKSPACE: "github-actions-pipeline"
+      CONFIG_DIRECTORY: "src/terraform"
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Upload Configuration
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.3.2
+        id: upload-configuration
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+          workspace: ${{ env.TF_WORKSPACE }}
+          directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Create Apply Run
+        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.3.2
+        id: create-run
         with:
-          cli_config_credentials_token: ${{ secrets.TF_CLOUD_API_TOKEN }}
-      
-      - name: Terraform Init
-        working-directory: ./src/terraform
-        run: terraform init
-      
-      - name: Terraform Apply
-        working-directory: ./src/terraform
-        run: terraform apply -var="ec2_public_SSH_key=${{ secrets.PUBLIC_SSH_KEY }}" -var="aws_region=${{ secrets.AWS_REGION }}" -auto-approve
-      
-      - name: Generate Terraform Outputs
-        run: terraform output -json > terraform_outputs.json
-      
+          workspace: ${{ env.TF_WORKSPACE }}
+          configuration_version: ${{ steps.upload-configuration.outputs.configuration_version_id }}
+
+      - name: Apply Run
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.3.2
+        id: apply-run
+        with:
+          run: ${{ steps.create-run.outputs.run_id }}
+
+      - name: Fetch Terraform Outputs
+        uses: hashicorp/tfc-workflows-github/actions/workspace-output@v1.3.2
+        id: workspace-output
+        with:
+          workspace: ${{ env.TF_WORKSPACE }}
+
       - name: Upload Terraform Outputs
-        uses: actions/upload-artifact@v3
+        env:
+          TF_OUTPUTS: ${{ steps.workspace-output.outputs.outputs }}
+        run: |
+          echo "$TF_OUTPUTS" > terraform-outputs.json
+          
+      - uses: actions/upload-artifact@v3
         with:
           name: terraform-outputs
-          path: terraform_outputs.json
+          path: terraform-outputs.json
           retention-days: 1
