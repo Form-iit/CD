@@ -29,8 +29,3 @@ resource "aws_route_table_association" "private_subnet_assocTo_route_table" {
   subnet_id      = aws_subnet.private_subnet.id
   route_table_id = aws_route_table.private_route_table.id
 }
-
-
-output "private_subnet_cidr_block" {
-  value = aws_subnet.private_subnet.cidr_block
-}

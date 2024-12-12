@@ -6,12 +6,3 @@ resource "aws_vpc" "Formiit-VPC" {
     Name = "Formiit-VPC"
   }
 }
-
-output "vpc_id" {
-  value = aws_vpc.Formiit-VPC.id
-}
-
-
-output "vpc_cidr_block" {
-  value = aws_vpc.Formiit-VPC.cidr_block
-}
