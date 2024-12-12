@@ -1,0 +1,47 @@
+name: "Ansible: setup docker on machines"
+
+on:
+    workflow_dispatch: 
+    workflow_run:
+        workflows:
+            - Infrastructure Deployment
+        types:
+            - completed
+
+jobs:
+    process-terraform-outputs:
+        if: github.event.workflow_run.conclusion == 'success'
+        runs-on: ubuntu-latest
+
+        steps:
+            # Checkout to the repo
+            - name: Checkout repository
+              uses: actions/checkout@v4
+            
+            # Download the artifact holding terraform output
+            - name: Download terraform outputs artifact
+              uses: actions/download-artifact@v4
+              with:
+                name: terraform-outputs
+            
+            # Parse the json outputs
+            - name: Parse Terraform Outputs and Create Inventory
+              id: parse-outputs
+              run: |
+                # Use jq to extract IPs from within the parsed outputs
+                PUBLIC_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
+                PRIVATE_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
+                
+                # read the inventory template then store it within INVENTORY_TEMPLATE variable
+                INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
+                
+                # Replace placeholders within the inventory
+                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/PUBLIC_IP_PLACEHOLDER/$PUBLIC_IP/g" | sed "s/PRIVATE_IP_PLACEHOLDER/$PRIVATE_IP/g")
+                
+                # Write the final inventory file
+                echo "$INVENTORY" > ansible/inventory
+            
+            - name: Run Ansible Playbook
+              run: ansible-playbook -i ansible/inventory src/ansible/setup_docker.yml
+              env:
+                ANSIBLE_HOST_KEY_CHECKING: False
