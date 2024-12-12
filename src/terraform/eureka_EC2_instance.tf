@@ -18,8 +18,16 @@ resource "aws_instance" "eureka_EC2" {
 
   subnet_id                   = aws_subnet.private_subnet.id
   associate_public_ip_address = false
+
+  user_data = <<-EOF
+            #!/bin/bash
+            hostnamectl set-hostname eureka-server
+            EOF
 }
 
-output "eureka_instance_ip" {
-  value = aws_instance.eureka_EC2.private_ip
+output "eureka_instance_details" {
+  value = {
+    private_ip = aws_instance.eureka_EC2.private_ip
+    hostname  = "eureka-server"
+  }
 }
