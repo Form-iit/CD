@@ -72,6 +72,8 @@ jobs:
             - name: Setup SSH
               env:
                 SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                API_GW_IP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
+                EUREKA_SERVER_IP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}
               run: |
                 mkdir -p ~/.ssh
                 echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
@@ -121,6 +123,8 @@ jobs:
             - name: Setup SSH
               env:
                 SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                API_GW_IP: ${{ needs.process-terraform-outputs.outputs.apiGwIp }}
+                EUREKA_SERVER_IP: ${{ needs.process-terraform-outputs.outputs.eurekaIp }}
               run: |
                 mkdir -p ~/.ssh
                 echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
@@ -142,6 +146,8 @@ jobs:
 
         outputs:
           eureka-status: ${{ steps.run-playbook.outcome }}
+          API_GW_IP: ${{ needs.process-terraform-outputs.outputs.apiGwIp }}
+          EUREKA_SERVER_IP: ${{ needs.process-terraform-outputs.outputs.eurekaIp }}
     
     run-api-gateway:
         needs: run-eureka
@@ -164,6 +170,8 @@ jobs:
             - name: Setup SSH
               env:
                 SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                API_GW_IP: ${{ needs.run-eureka.outputs.API_GW_IP }}
+                EUREKA_SERVER_IP: ${{ needs.run-eureka.outputs.EUREKA_SERVER_IP }}
               run: |
                 mkdir -p ~/.ssh
                 echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
