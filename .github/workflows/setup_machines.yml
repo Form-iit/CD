@@ -29,19 +29,112 @@ jobs:
               id: parse-outputs
               run: |
                 # Use jq to extract IPs from within the parsed outputs
-                PUBLIC_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
-                PRIVATE_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
+                API-GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
+                EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
+
+                # add masks to hide the ips in the output
+                echo "::add-mask::$API_GW_IP"
+                echo "::add-mask::$EUREKA_SERVER_IP"
+    
+                # Save IPs to environment variables
+                echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
+                echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
                 
                 # read the inventory template then store it within INVENTORY_TEMPLATE variable
                 INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
                 
                 # Replace placeholders within the inventory
-                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/PUBLIC_IP_PLACEHOLDER/$PUBLIC_IP/g" | sed "s/PRIVATE_IP_PLACEHOLDER/$PRIVATE_IP/g")
+                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API-GW_IP/g" | sed "s/EUREKA_IP_PLACEHOLDER/$EUREKA_SERVER_IP/g") 
                 
                 # Write the final inventory file
                 echo "$INVENTORY" > ansible/inventory
+
+             # Upload the inventory as an artifact
+            - name: Upload inventory artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: ansible-inventory
+                path: ansible/inventory
             
             - name: Run Ansible Playbook
               run: ansible-playbook -i ansible/inventory src/ansible/setup_docker.yml
+              env:
+                ANSIBLE_HOST_KEY_CHECKING: False
+        outputs:
+          apiGwIp: ${{ steps.parse-outputs.outputs.API_GW_IP }}
+          eurekaIp: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}  
+    
+    run-eureka:
+        needs: process-terraform-outputs
+        runs-on: ubuntu-latest
+
+        steps:
+
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Download env template
+              run: |
+                wget https://raw.githubusercontent.com/Form-iit/service-discovery/refs/heads/main/docker-compose.template.env -O .env.template
+              
+            - name: Prepare environment file
+              run: |
+                cp .env.template .env
+                sed -i "s/placeholder_server_port/${{ secrets.EUREKA_SERVER_PORT }}/g" .env
+                sed -i "s/placeholder_ip_address/${{ needs.process-terraform-outputs.outputs.eurekaIp }}/g" .env
+                sed -i "s/placeholder_serviceurl/http:\/\/${{ needs.process-terraform-outputs.outputs.eurekaIp }}:${{ secrets.EUREKA_SERVER_PORT }}\/eureka/g" .env
+                sed -i "s/placeholder_username/${{ secrets.EUREKA_ADMIN_USERNAME }}/g" .env
+                sed -i "s/placeholder_password/${{ secrets.EUREKA_ADMIN_PASSWORD }}/g" .env
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+            
+            - name: Set up Ansible
+              run: |
+                pip install ansible
+                ansible-galaxy collection install community.docker
+                ansible-galaxy collection install community.general
+
+            # Download the inventory artifact
+            - name: Download inventory artifact
+              uses: actions/download-artifact@v4
+              with:
+                name: ansible-inventory
+            
+            - name: Run Ansible Playbook
+              id: run-playbook
+              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/run_eureka.yml
+              env:
+                ANSIBLE_HOST_KEY_CHECKING: False
+
+        outputs:
+          eureka-status: ${{ steps.run-playbook.outcome }}
+    
+    run-api-gateway:
+        needs: run-eureka
+        if: ${{ needs.run-eureka.outputs.eureka-status == 'success' }}
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+            
+            - name: Set up Python
+              uses: actions/setup-python@v4
+            
+            - name: Set up Ansible
+              run: |
+                pip install ansible
+                ansible-galaxy collection install community.docker
+                ansible-galaxy collection install community.general
+
+            # Download the inventory artifact
+            - name: Download inventory artifact
+              uses: actions/download-artifact@v4
+              with:
+                name: ansible-inventory
+
+            - name: Run API Gateway Ansible Playbook
+              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/run_apiGW.yml
               env:
                 ANSIBLE_HOST_KEY_CHECKING: False
