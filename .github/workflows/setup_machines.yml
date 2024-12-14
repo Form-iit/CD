@@ -18,11 +18,12 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
             
-            # Download the artifact holding terraform output
-            - name: Download terraform outputs artifact
-              uses: actions/download-artifact@v4
+            - name: Download build artifact
+              uses: dawidd6/action-download-artifact@v6
               with:
                 name: terraform-outputs
+                github_token: ${{ secrets.GITHUB_TOKEN }} #This is needed because we're downloading an artifact from a different workflow.The GITHUB_TOKEN is automatically provided by GitHub Actions. Without this token, the action wouldn't have permission to access artifacts from other workflows
+                run_id: ${{ github.event.workflow_run.id }} #contains the ID of the workflow run that triggered this  workflow.
             
             # Parse the json outputs
             - name: Parse Terraform Outputs and Create Inventory
