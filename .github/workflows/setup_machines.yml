@@ -30,13 +30,13 @@ jobs:
               id: parse-outputs
               run: |
                 # Use jq to extract IPs from within the parsed outputs
-                API-GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
+                API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
                 EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
 
                 # add masks to hide the ips in the output
                 echo "::add-mask::$API_GW_IP"
                 echo "::add-mask::$EUREKA_SERVER_IP"
-    
+
                 # Save IPs to environment variables
                 echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
                 echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
@@ -45,7 +45,7 @@ jobs:
                 INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
                 
                 # Replace placeholders within the inventory
-                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API-GW_IP/g" | sed "s/EUREKA_IP_PLACEHOLDER/$EUREKA_SERVER_IP/g") 
+                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_IP_PLACEHOLDER/$EUREKA_SERVER_IP/g") 
                 
                 # Write the final inventory file
                 echo "$INVENTORY" > ansible/inventory
