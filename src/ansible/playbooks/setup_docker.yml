@@ -1,0 +1,59 @@
+- hosts: api_gw:eureka_server
+  become: yes
+  become_user: ec2-user
+  tasks:
+    - name: Update yum packages
+      yum:
+        name: "*"
+        latest: true
+
+    - name: Install docker
+      yum:
+        name: docker
+        state: present
+        update_cache: true
+    
+    - name: Start docker
+      service:
+        name: docker
+        state: started
+        enabled: true
+    
+    - name: Add user to docker group
+      command:  usermod -a -G docker ec2-user
+
+    - name: Force Ansible to reconnect #(equivalent to session logout/login)
+      meta: reset_connection
+
+    - name: Check Docker version
+      command: docker --version
+      register: docker_version_output
+
+    - name: Output Docker version
+      debug:
+        msg: "Docker version: {{ docker_version_output.stdout }}"
+
+    - name: Check Docker Compose version
+      command: docker-compose --version
+      register: docker_compose_version_output
+
+    - name: Output Docker Compose version
+      debug:
+        msg: "Docker Compose version: {{ docker_compose_version_output.stdout }}"
+
+    
+    - name: "Download Docker Compose"
+      get_url:
+        url: "https://github.com/docker/compose/releases/latest/download/docker-compose-{{ ansible_system | lower }}-{{ ansible_architecture }}"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Check Docker Compose version
+      command: docker-compose --version
+      register: docker_compose_version_output
+
+    - name: Output Docker Compose version
+      debug:
+        msg: "Docker Compose version: {{ docker_compose_version_output.stdout }}"
+
+
