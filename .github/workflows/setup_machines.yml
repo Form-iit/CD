@@ -29,6 +29,9 @@ jobs:
             - name: Parse Terraform Outputs and Create Inventory
               id: parse-outputs
               run: |
+                # Create the ansible directory if it doesn't exist
+                mkdir -p ansible
+
                 # Use jq to extract IPs from within the parsed outputs
                 API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
                 EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
