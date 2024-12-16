@@ -1,6 +1,6 @@
 # Create an EC2 instance
 resource "aws_instance" "eureka_EC2" {
-  ami           = "ami-02a0945ba27a488b7" # # Amazon Linux 2 AMI ID for eu-north-1
+  ami           = "ami-075449515af5df0d1" # Ubuntu server 24.04 LTS AMI ID for eu-north-1
   instance_type = "t3.micro"              # Free-tier eligible instance type
 
   key_name               = aws_key_pair.my_key.key_name

@@ -1,6 +1,6 @@
 # NAT Instance using Amazon Linux 2 (Free tier eligible)
 resource "aws_instance" "nat_instance" {
-  ami           = "ami-02a0945ba27a488b7" # Using Amazon Linux 2 (free tier eligible)
+  ami           = "ami-075449515af5df0d1" # Ubuntu server 24.04 LTS AMI ID for eu-north-1
   instance_type = "t3.micro"
 
   subnet_id              = aws_subnet.public_subnet.id
