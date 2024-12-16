@@ -1,59 +1,115 @@
-- hosts: api_gw:eureka_server
-  become: yes
-  become_user: ec2-user
-  tasks:
-    - name: Update yum packages
-      yum:
-        name: "*"
-        latest: true
+- name: "Apply Security Updates"
+  hosts: api_gw,eureka_server
+  become: true
 
-    - name: Install docker
-      yum:
-        name: docker
+  tasks:
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+
+    - name: "Install Git"
+      ansible.builtin.apt:
+        name: "git"
+        state: present
+
+    - name: Install required system packages
+      ansible.builtin.apt:
+        pkg:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
         state: present
         update_cache: true
-    
-    - name: Start docker
-      service:
+
+    - name: Create keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /tmp/docker.gpg
+        mode: '0644'
+
+    - name: Add Docker's official GPG key
+      ansible.builtin.command:
+        cmd: gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.gpg
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Set Docker repository permissions
+      ansible.builtin.file:
+        path: /etc/apt/keyrings/docker.gpg
+        mode: '0644'
+
+    - name: Add Docker repository to sources.list.d
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "deb [arch=$(dpkg --print-architecture) \
+        signed-by=/etc/apt/keyrings/docker.gpg] \
+        https://download.docker.com/linux/ubuntu \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+        executable: /bin/bash
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Docker packages
+      ansible.builtin.apt:
+        pkg:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker service is started and enabled
+      ansible.builtin.systemd:
         name: docker
         state: started
         enabled: true
-    
-    - name: Add user to docker group
-      command:  usermod -a -G docker ec2-user
 
-    - name: Force Ansible to reconnect #(equivalent to session logout/login)
-      meta: reset_connection
+    - name: "Add current user to docker group"
+      ansible.builtin.user:
+        name: ubuntu
+        groups: "sudo,docker"
+        append: true
 
-    - name: Check Docker version
-      command: docker --version
+    - name: "Force Ansible to reconnect"
+      ansible.builtin.meta: reset_connection
+
+    - name: Get Docker version
+      ansible.builtin.command: docker --version
+      changed_when: false
       register: docker_version_output
 
-    - name: Output Docker version
-      debug:
+    - name: Show Docker version
+      ansible.builtin.debug:
         msg: "Docker version: {{ docker_version_output.stdout }}"
 
-    - name: Check Docker Compose version
-      command: docker-compose --version
-      register: docker_compose_version_output
-
-    - name: Output Docker Compose version
-      debug:
-        msg: "Docker Compose version: {{ docker_compose_version_output.stdout }}"
-
-    
     - name: "Download Docker Compose"
-      get_url:
+      ansible.builtin.get_url:
         url: "https://github.com/docker/compose/releases/latest/download/docker-compose-{{ ansible_system | lower }}-{{ ansible_architecture }}"
         dest: /usr/local/bin/docker-compose
         mode: '0755'
 
     - name: Check Docker Compose version
-      command: docker-compose --version
+      ansible.builtin.command: docker-compose --version
+      changed_when: false
       register: docker_compose_version_output
 
     - name: Output Docker Compose version
-      debug:
+      ansible.builtin.debug:
         msg: "Docker Compose version: {{ docker_compose_version_output.stdout }}"
-
-
