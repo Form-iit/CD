@@ -77,13 +77,25 @@ jobs:
                 API_GW_IP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
                 EUREKA_SERVER_IP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}
               run: |
+                # Create the SSH directory and set proper permissions
                 mkdir -p ~/.ssh
-                echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
-                chmod 400 ~/.ssh/id_rsa
+                chmod 700 ~/.ssh
+
+                # Cleanly handle the private key to avoid formatting issues
+                echo "$SSH_PRIVATE_KEY" | sed 's/\\n/\n/g' > ~/.ssh/id_rsa
+                chmod 600 ~/.ssh/id_rsa
+
+                # Start the SSH agent and add the private key
                 eval "$(ssh-agent -s)"
                 ssh-add ~/.ssh/id_rsa
+
+                # Add target hosts to the known_hosts file to prevent host key verification issues
                 ssh-keyscan -H $API_GW_IP >> ~/.ssh/known_hosts
                 ssh-keyscan -H $EUREKA_SERVER_IP >> ~/.ssh/known_hosts
+
+                # Ensure the known_hosts file has the correct permissions
+                chmod 600 ~/.ssh/known_hosts
+
             
             - name: Run Ansible Playbook
               run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
