@@ -92,9 +92,11 @@ jobs:
                 # Ensure the known_hosts file has the correct permissions
                 chmod 600 ~/.ssh/known_hosts
 
+                # Test SSH connection manually
+                ssh -vvv -i ~/.ssh/id_rsa ubuntu@$API_GW_IP exit
             
             - name: Run Ansible Playbook
-              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
+              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa -u ubuntu
               env:
                 ANSIBLE_HOST_KEY_CHECKING: true
         outputs:
