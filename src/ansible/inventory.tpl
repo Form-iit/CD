@@ -1,5 +1,2 @@
 [api_gw]
 API-GW_IP_PLACEHOLDER
-
-[eureka_server]
-EUREKA_IP_PLACEHOLDER
