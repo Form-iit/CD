@@ -82,7 +82,7 @@ jobs:
                 chmod 700 ~/.ssh
 
                 # Cleanly handle the private key to avoid formatting issues
-                echo "$SSH_PRIVATE_KEY" | sed 's/\\n/\n/g' > ~/.ssh/id_rsa
+                echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
                 chmod 600 ~/.ssh/id_rsa
 
                 # Start the SSH agent and add the private key
