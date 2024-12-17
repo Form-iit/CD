@@ -36,21 +36,18 @@ jobs:
 
                 # Use jq to extract IPs from within the parsed outputs
                 API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
-                EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
 
                 # add masks to hide the ips in the output
                 echo "::add-mask::$API_GW_IP"
-                echo "::add-mask::$EUREKA_SERVER_IP"
 
                 # Save IPs to environment variables
                 echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
-                echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
                 
                 # read the inventory template then store it within INVENTORY_TEMPLATE variable
                 INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
                 
                 # Replace placeholders within the inventory
-                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_IP_PLACEHOLDER/$EUREKA_SERVER_IP/g") 
+                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g") 
                 
                 # Write the final inventory file
                 echo "$INVENTORY" > ansible/inventory
@@ -75,7 +72,7 @@ jobs:
               env:
                 SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
                 API_GW_IP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
-                EUREKA_SERVER_IP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}
+
               run: |
                 # Create the SSH directory and set proper permissions
                 mkdir -p ~/.ssh
@@ -91,7 +88,6 @@ jobs:
 
                 # Add target hosts to the known_hosts file to prevent host key verification issues
                 ssh-keyscan -H $API_GW_IP >> ~/.ssh/known_hosts
-                ssh-keyscan -H $EUREKA_SERVER_IP >> ~/.ssh/known_hosts
 
                 # Ensure the known_hosts file has the correct permissions
                 chmod 600 ~/.ssh/known_hosts
@@ -102,8 +98,7 @@ jobs:
               env:
                 ANSIBLE_HOST_KEY_CHECKING: true
         outputs:
-          apiGwIp: ${{ steps.parse-outputs.outputs.API_GW_IP }}
-          eurekaIp: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}  
+         apiGwIp: ${{ steps.parse-outputs.outputs.API_GW_IP }}
     
 #    run-eureka:
 #        needs: process-terraform-outputs
