@@ -94,7 +94,7 @@ jobs:
 
             
             - name: Run Ansible Playbook
-              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
+              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
               env:
                 ANSIBLE_HOST_KEY_CHECKING: true
         outputs:
