@@ -28,26 +28,38 @@ jobs:
                 run_id: ${{ github.event.workflow_run.id }} #contains the ID of the workflow run that triggered this  workflow.
             
             # Parse the json outputs
-            - name: Parse Terraform Outputs and Create Inventory
+            - name: Parse Terraform Outputs
               id: parse-outputs
               run: |
+                # Use jq to extract IPs from within the parsed outputs
+                API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
+                EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
+                
+                # add masks to hide the ips in the output
+                echo "::add-mask::$API_GW_IP"
+                echo "::add-mask::$EUREKA_SERVER_IP"
+                
+                # Save IPs to environment variables
+                echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
+                echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
+        outputs:
+            apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
+            eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
+        
+    setup-ansible-inventory:
+        needs: process-terraform-outputs
+        runs-on: ubuntu-latest
+        steps:
+            - name: get inventory template
+              run: | 
                 # Create the ansible directory if it doesn't exist
                 mkdir -p ansible
 
-                # Use jq to extract IPs from within the parsed outputs
-                API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
-
-                # add masks to hide the ips in the output
-                echo "::add-mask::$API_GW_IP"
-
-                # Save IPs to environment variables
-                echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
-                
                 # read the inventory template then store it within INVENTORY_TEMPLATE variable
                 INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
                 
                 # Replace placeholders within the inventory
-                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g") 
+                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.apiGwIP }}/g" | sed "s/EUREKA_SERVER_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.eurekaIP }}/g" | sed "s/API_GW_USER/${{ secrets.API_GW_HOST_USERNAME }}/g" | sed "s/EUREKA_USER/${{ secrets.EUREKA_HOST_USERNAME }}/g") 
                 
                 # Write the final inventory file
                 echo "$INVENTORY" > ansible/inventory
@@ -58,6 +70,35 @@ jobs:
               with:
                 name: ansible-inventory
                 path: ansible/inventory
+    
+    setup-ssh:
+        needs: 
+            - setup-ansible-inventory
+            - process-terraform-outputs
+        runs-on: ubuntu-latest
+        steps:
+            - name: Create the ssh directory
+              run: |
+                mkdir -p ~/.ssh
+                chmod 700 ~/.ssh
+            - name: Extract ssh private key
+              run: |
+                echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
+                chmod 600 ~/.ssh/id_rsa
+            - name: Handle the key by the ssh-agent
+              run: |
+                eval "$(ssh-agent -s)"
+                ssh-add ~/.ssh/id_rsa
+            - name: Add target host to known-hosts
+              run: | 
+                # Add target hosts to the known_hosts file to prevent host key verification issues
+                ssh-keyscan -H ${{ needs.process-terraform-outputs.outputs.apiGwIP }} >> ~/.ssh/known_hosts 
+                chmod 600 ~/.ssh/known_hosts
+    
+    setup-ansible:
+        needs: setup-ansible-inventory
+        runs-on: ubuntu-latest
+        steps:
 
             - name: Set up Python
               uses: actions/setup-python@v4
@@ -67,142 +108,15 @@ jobs:
                 pip install ansible
                 ansible-galaxy collection install community.docker
                 ansible-galaxy collection install community.general
-            
-            - name: Setup SSH
-              env:
-                SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-                API_GW_IP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
-
-              run: |
-                # Create the SSH directory and set proper permissions
-                mkdir -p ~/.ssh
-                chmod 700 ~/.ssh
-
-                # Cleanly handle the private key to avoid formatting issues
-                echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
-                chmod 600 ~/.ssh/id_rsa
-
-                # Start the SSH agent and add the private key
-                eval "$(ssh-agent -s)"
-                ssh-add ~/.ssh/id_rsa
-
-                # Add target hosts to the known_hosts file to prevent host key verification issues
-                ssh-keyscan -H $API_GW_IP >> ~/.ssh/known_hosts
-
-                # Ensure the known_hosts file has the correct permissions
-                chmod 600 ~/.ssh/known_hosts
-
-                # Test SSH connection manually
-                ssh -vvv -i ~/.ssh/id_rsa ubuntu@$API_GW_IP exit
-            
+    
+    run-docker-playbook:
+        needs: 
+            - setup-ssh
+            - setup-ansible
+            - setup-ansible-inventory
+        runs-on: ubuntu-latest
+        steps:
             - name: Run Ansible Playbook
-              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa -u ubuntu
+              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
               env:
                 ANSIBLE_HOST_KEY_CHECKING: true
-        outputs:
-         apiGwIp: ${{ steps.parse-outputs.outputs.API_GW_IP }}
-    
-#    run-eureka:
-#        needs: process-terraform-outputs
-#        runs-on: ubuntu-latest
-#
-#        steps:
-#
-#            - name: Checkout repository
-#              uses: actions/checkout@v4
-#              with:
-#                ref: ${{ github.event.workflow_run.head_branch }}
-#
-#            - name: Download env template
-#              run: |
-#                wget https://raw.githubusercontent.com/Form-iit/service-discovery/refs/heads/main/docker-compose.template.env -O .env.template
-#              
-#            - name: Prepare environment file
-#              run: |
-#                cp .env.template .env
-#                sed -i "s/placeholder_server_port/${{ secrets.EUREKA_SERVER_PORT }}/g" .env
-#                sed -i "s/placeholder_ip_address/${{ needs.process-terraform-outputs.outputs.eurekaIp }}/g" .env
-#                sed -i "s/placeholder_serviceurl/http:\/\/${{ needs.process-terraform-outputs.outputs.eurekaIp }}:${{ secrets.EUREKA_SERVER_PORT }}\/eureka/g" .env
-#                sed -i "s/placeholder_username/${{ secrets.EUREKA_ADMIN_USERNAME }}/g" .env
-#                sed -i "s/placeholder_password/${{ secrets.EUREKA_ADMIN_PASSWORD }}/g" .env
-#
-#            - name: Set up Python
-#              uses: actions/setup-python@v4
-#            
-#            - name: Set up Ansible
-#              run: |
-#                pip install ansible
-#                ansible-galaxy collection install community.docker
-#                ansible-galaxy collection install community.general
-#            
-#            - name: Setup SSH
-#              env:
-#                SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-#                API_GW_IP: ${{ needs.process-terraform-outputs.outputs.apiGwIp }}
-#                EUREKA_SERVER_IP: ${{ needs.process-terraform-outputs.outputs.eurekaIp }}
-#              run: |
-#                mkdir -p ~/.ssh
-#                echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
-#                chmod 600 ~/.ssh/id_rsa
-#                ssh-keyscan -H $API_GW_IP >> ~/.ssh/known_hosts
-#                ssh-keyscan -H $EUREKA_SERVER_IP >> ~/.ssh/known_hosts
-#
-#            # Download the inventory artifact
-#            - name: Download inventory artifact
-#              uses: actions/download-artifact@v4
-#              with:
-#                name: ansible-inventory
-#            
-#            - name: Run Ansible Playbook
-#              id: run-playbook
-#              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/run_eureka.yml
-#              env:
-#                ANSIBLE_HOST_KEY_CHECKING: False
-#
-#        outputs:
-#          eureka-status: ${{ steps.run-playbook.outcome }}
-#          API_GW_IP: ${{ needs.process-terraform-outputs.outputs.apiGwIp }}
-#          EUREKA_SERVER_IP: ${{ needs.process-terraform-outputs.outputs.eurekaIp }}
-#    
-#    run-api-gateway:
-#        needs: run-eureka
-#        if: ${{ needs.run-eureka.outputs.eureka-status == 'success' }}
-#        runs-on: ubuntu-latest
-#
-#        steps:
-#            - name: Checkout repository
-#              uses: actions/checkout@v4
-#              with:
-#                ref: ${{ github.event.workflow_run.head_branch }}
-#            
-#            - name: Set up Python
-#              uses: actions/setup-python@v4
-#            
-#            - name: Set up Ansible
-#              run: |
-#                pip install ansible
-#                ansible-galaxy collection install community.docker
-#                ansible-galaxy collection install community.general
-#            
-#            - name: Setup SSH
-#              env:
-#                SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-#                API_GW_IP: ${{ needs.run-eureka.outputs.API_GW_IP }}
-#                EUREKA_SERVER_IP: ${{ needs.run-eureka.outputs.EUREKA_SERVER_IP }}
-#              run: |
-#                mkdir -p ~/.ssh
-#                echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
-#                chmod 600 ~/.ssh/id_rsa
-#                ssh-keyscan -H $API_GW_IP >> ~/.ssh/known_hosts
-#                ssh-keyscan -H $EUREKA_SERVER_IP >> ~/.ssh/known_hosts
-#
-#            # Download the inventory artifact
-#            - name: Download inventory artifact
-#              uses: actions/download-artifact@v4
-#              with:
-#                name: ansible-inventory
-#
-#            - name: Run API Gateway Ansible Playbook
-#              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/run_apiGW.yml
-#              env:
-#                ANSIBLE_HOST_KEY_CHECKING: False
