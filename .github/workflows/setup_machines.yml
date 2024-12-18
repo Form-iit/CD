@@ -123,19 +123,14 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                 name: ansible-inventory
-
-            - name: Debug - List files
-              run: |
-                echo "Current directory contents:"
-                ls -al inventory
-                cat inventory
+                path: inventory
 
             - name: Inject SSH key file into the inventory
               env: 
                 SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
               run: |
                 # read the inventory template then store it within INVENTORY_TEMPLATE variable
-                INVENTORY_TEMPLATE=$(cat ansible-inventory)
+                INVENTORY_TEMPLATE=$(cat inventory)
                 
                 # Replace placeholders within the inventory
                 INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/SSH_PRIVATE_KEY_PATH/$SSH_PRIVATE_KEY_FILE_PATH/g") 
