@@ -50,6 +50,11 @@ jobs:
         needs: process-terraform-outputs
         runs-on: ubuntu-latest
         steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                ref: ${{ github.event.workflow_run.head_branch }}
+
             - name: get inventory template
               run: | 
                 # Create the ansible directory if it doesn't exist
@@ -116,6 +121,12 @@ jobs:
             - setup-ansible-inventory
         runs-on: ubuntu-latest
         steps:
+            # Checkout to the repo
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                ref: ${{ github.event.workflow_run.head_branch }}
+                
             - name: Run Ansible Playbook
               run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
               env:
