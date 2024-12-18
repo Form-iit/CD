@@ -1,6 +1,6 @@
 # This is deprecated. It is scheduled for removal. It will be removed after having a full replacement
 
-name: "Ansible: setup docker on machines"
+name: "Ansible: setup docker on machines (deprecated)"
 
 on:
     workflow_dispatch: 
