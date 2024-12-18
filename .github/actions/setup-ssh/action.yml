@@ -38,6 +38,8 @@ runs:
         echo "Known hosts contents:"
         cat ~/.ssh/known_hosts
 
+        echo ${{inputs.ssh_private_key}} 
+
     - name: Sets up SSH private key
       uses: webfactory/ssh-agent@v0.9.0
       with:
