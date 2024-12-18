@@ -43,6 +43,7 @@ jobs:
                 
                 # Save IPs to environment variables
                 echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
+                echo "$API_GW_IP"
                 echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
         outputs:
             apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
