@@ -77,9 +77,7 @@ jobs:
                 path: ansible/inventory
     
     setup-ssh:
-        needs: 
-            - setup-ansible-inventory
-            - process-terraform-outputs
+        needs: setup-ansible-inventory
         runs-on: ubuntu-latest
         steps:
             - name: Create the ssh directory
