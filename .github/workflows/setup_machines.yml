@@ -137,6 +137,9 @@ jobs:
                 # Replace placeholders within the inventory
                 INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/SSH_PRIVATE_KEY_PATH/$SSH_PRIVATE_KEY_FILE_PATH/g") 
                 
+                # Make the ansible directory if it doesn't exist
+                mkdir -p ansible 
+
                 # Write the final inventory file
                 echo "$INVENTORY" > ansible/inventory
 
