@@ -1,18 +1,18 @@
 name: 'Setup SSH'
-description: 'Sets up SSH configuration with private key and known hosts'
-
+description: 'Setup SSH keys and known hosts'
 inputs:
   target_ips:
-    description: 'Comma-separated list of IP addresses to add to known hosts'
+    description: 'Comma-separated list of target IP addresses'
     required: true
   ssh_private_key:
-    description: 'SSH Private Key'
+    description: 'SSH private key (base64 encoded)'
     required: true
 
 runs:
   using: "composite"
   steps:
     - name: Add target hosts to known-hosts
+      id: setup-ssh
       shell: bash
       env:
         TARGET_IPS: ${{ inputs.target_ips }}
@@ -43,10 +43,10 @@ runs:
         # Set correct permissions
         chmod 600 ~/.ssh/known_hosts
 
-        # Output file paths for reuse
-        echo "PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH" >> $GITHUB_ENV
-
-    - name: Set output variables
-      shell: bash
-      run: |
+        # Set output
         echo "ssh_key_path=${PRIVATE_KEY_PATH}" >> $GITHUB_OUTPUT
+
+outputs:
+  ssh_key_path:
+    description: 'Path to the SSH private key file'
+    value: ${{ steps.setup-ssh.outputs.ssh_key_path }}

@@ -125,8 +125,10 @@ jobs:
                 ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
 
             - name: List ssh key path
-              run: echo ${{ steps.setup-ssh.outputs.ssh_key_path }}
-              
+              run: |
+                echo ${{ steps.setup-ssh.outputs.ssh_key_path }}  # this doesn't work
+                echo "==================================================================================>"
+                ls -la ~/.ssh/id_rsa
             - name: Inject SSH key file into the inventory
               env: 
                 SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
