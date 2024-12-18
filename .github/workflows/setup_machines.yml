@@ -38,13 +38,17 @@ jobs:
                 echo "$API_GW_IP"
                 
                 # add masks to hide the ips in the output
-                echo "::add-mask::$API_GW_IP"
+                #echo "::add-mask::$API_GW_IP"
                 echo "::add-mask::$EUREKA_SERVER_IP"
                 
                 # Save IPs to environment variables
                 echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
-                echo "$API_GW_IP"
                 echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
+              
+            # Debug step to verify output
+            - name: Verify Output
+              run: |
+                echo "API_GW_IP from output: ${{ steps.parse-outputs.outputs.API_GW_IP }}"
         outputs:
             apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
             eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
@@ -67,9 +71,10 @@ jobs:
               # read the inventory template then store it within INVENTORY_TEMPLATE variable
               INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
 
+              echo "${{ needs.process-terraform-outputs.outputs.apiGwIP }}"
               # Get the IP from the previous job
               API_GW_IP=${{ needs.process-terraform-outputs.outputs.apiGwIP }}
-              
+              echo "$API_GW_IP"
               # Replace placeholders within the inventory
               INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_SERVER_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.eurekaIP }}/g" | sed "s/API_GW_USER/${{ secrets.API_GW_HOST_USERNAME }}/g" | sed "s/EUREKA_USER/${{ secrets.EUREKA_HOST_USERNAME }}/g") 
               
