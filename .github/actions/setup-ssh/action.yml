@@ -1,0 +1,44 @@
+name: 'Setup SSH'
+description: 'Sets up SSH configuration with private key and known hosts'
+
+inputs:
+  target_ips:
+    description: 'Comma-separated list of IP addresses to add to known hosts'
+    required: true
+  ssh_private_key:
+    description: 'SSH Private Key'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Add target hosts to known-hosts
+      shell: bash
+      env:
+        TARGET_IPS: ${{ inputs.target_ips }}
+      run: | 
+        # Convert the input string to a bash array
+        IFS=',' read -ra IP_ARRAY <<< "$TARGET_IPS"
+        
+        # Create .ssh directory if it doesn't exist
+        mkdir -p ~/.ssh
+        
+        # Add each IP to known hosts
+        for ip in "${IP_ARRAY[@]}"; do
+          # Trim whitespace
+          ip=$(echo "$ip" | xargs)
+          echo "Adding IP to known hosts: $ip"
+          ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts
+        done
+        
+        # Set correct permissions
+        chmod 600 ~/.ssh/known_hosts
+        
+        # Optional: Display added hosts
+        echo "Known hosts contents:"
+        cat ~/.ssh/known_hosts
+
+    - name: Sets up SSH private key
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ inputs.ssh_private_key }}

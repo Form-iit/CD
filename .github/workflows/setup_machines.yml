@@ -113,7 +113,7 @@ jobs:
                 ref: ${{ github.event.workflow_run.head_sha }}
 
             - name: Setup SSH
-              uses: ./setup_SSH.yml
+              uses: ./.github/actions/setup-ssh
               with:
                 target_ips: "${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
                 ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
