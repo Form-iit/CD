@@ -127,9 +127,7 @@ jobs:
             - name: Debug - List files
               run: |
                 echo "Current directory contents:"
-                ls -la
                 ls -al inventory
-                ls -al src
 
             - name: Inject SSH key file into the inventory
               env: 
