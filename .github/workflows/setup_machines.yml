@@ -113,6 +113,7 @@ jobs:
                 ref: ${{ github.event.workflow_run.head_sha }}
 
             - name: Setup SSH
+              id: setup-ssh
               uses: ./.github/actions/setup-ssh
               with:
                 target_ips: "${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
@@ -123,8 +124,21 @@ jobs:
               with:
                 name: ansible-inventory
                 path: ansible
+            
+            - name: Inject SSH key file into the inventory
+              env: 
+                SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
+              run: |
+                # read the inventory template then store it within INVENTORY_TEMPLATE variable
+                INVENTORY_TEMPLATE=$(cat src/ansible/ansible-inventory)
+                
+                # Replace placeholders within the inventory
+                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/SSH_PRIVATE_KEY_PATH/$SSH_PRIVATE_KEY_FILE_PATH/g") 
+                
+                # Write the final inventory file
+                echo "$INVENTORY" > ansible/inventory
 
             - name: Run Ansible Playbook
-              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
+              run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
               env:
                 ANSIBLE_HOST_KEY_CHECKING: true
