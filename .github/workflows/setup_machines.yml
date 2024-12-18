@@ -126,8 +126,19 @@ jobs:
                 path: inventory
             
             - name: List contents of inventory directory
-              run: ls -R inventory
-
+              run: | 
+                echo "1:"
+                ls -R inventory
+                echo "2:"
+                ls -R ansible
+                echo "3:"
+                ls
+                echo "4:"
+                cat inventory/ansible-inventory
+                echo "5:"
+                cat ansible/inventory
+                echo "6:"
+                ls
               
             - name: Inject SSH key file into the inventory
               env: 
