@@ -124,7 +124,11 @@ jobs:
               with:
                 name: ansible-inventory
                 path: inventory
+            
+            - name: List contents of inventory directory
+              run: ls -R inventory
 
+              
             - name: Inject SSH key file into the inventory
               env: 
                 SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
