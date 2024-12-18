@@ -135,6 +135,8 @@ jobs:
               run: |
                 # read the inventory template then store it within INVENTORY_TEMPLATE variable
                 INVENTORY_TEMPLATE=$(cat inventory)
+
+                echo "$INVENTORY_TEMPLATE"
                 
                 # Replace placeholders within the inventory
                 INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/SSH_PRIVATE_KEY_PATH/$SSH_PRIVATE_KEY_FILE_PATH/g") 
