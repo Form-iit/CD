@@ -128,6 +128,7 @@ jobs:
               run: |
                 echo "Current directory contents:"
                 ls -al inventory
+                cat inventory
 
             - name: Inject SSH key file into the inventory
               env: 
