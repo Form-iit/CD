@@ -18,7 +18,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
-                ref: ${{ github.event.workflow_run.head_branch }}
+                ref: ${{ github.event.workflow_run.head_sha }}
             
             - name: Download build artifact
               uses: dawidd6/action-download-artifact@v6
@@ -53,7 +53,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
-                ref: ${{ github.event.workflow_run.head_branch }}
+                ref: ${{ github.event.workflow_run.head_sha }}
 
             - name: Fill inventory template
               id: fill-inventory
@@ -90,6 +90,12 @@ jobs:
         needs: setup-ansible-inventory
         runs-on: ubuntu-latest
         steps:
+            - name: Debug Outputs
+              run: |
+                echo "API Gateway IP: ${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
+                echo "Full job context:"
+                echo '${{ toJson(needs) }}'
+
             - name: Create the ssh directory
               run: |
                 mkdir -p ~/.ssh
@@ -138,7 +144,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
-                ref: ${{ github.event.workflow_run.head_branch }}
+                ref: ${{ github.event.workflow_run.head_sha }}
                 
             - name: Run Ansible Playbook
               run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
