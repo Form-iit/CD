@@ -85,33 +85,6 @@ jobs:
               echo "API_GW_IP from output: ${{ steps.set-ip.outputs.API_GW_IP }}"
       outputs:
         apiGwIP: ${{ steps.set-ip.outputs.API_GW_IP }}
-
-    setup-ssh:
-        needs: setup-ansible-inventory
-        runs-on: ubuntu-latest
-        steps:
-            - name: Create the ssh directory
-              run: |
-                mkdir -p ~/.ssh
-                chmod 700 ~/.ssh
-
-            - name: Extract ssh private key
-              run: |
-                echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
-                chmod 600 ~/.ssh/id_rsa
-
-            - name: Handle the key by the ssh-agent
-              run: |
-                eval "$(ssh-agent -s)"
-                ssh-add ~/.ssh/id_rsa
-
-            - name: Add target host to known-hosts
-              env:
-                API_GW_IP: ${{ needs.setup-ansible-inventory.outputs.apiGwIP }}
-              run: | 
-                # Add target hosts to the known_hosts file to prevent host key verification issues
-                ssh-keyscan -H $API_GW_IP  >> ~/.ssh/known_hosts 
-                chmod 600 ~/.ssh/known_hosts
     
     setup-ansible:
         needs: setup-ansible-inventory
@@ -129,7 +102,6 @@ jobs:
     
     run-docker-playbook:
         needs: 
-            - setup-ssh
             - setup-ansible
             - setup-ansible-inventory
         runs-on: ubuntu-latest
@@ -139,13 +111,19 @@ jobs:
               uses: actions/checkout@v4
               with:
                 ref: ${{ github.event.workflow_run.head_sha }}
-            
+
+            - name: Setup SSH
+              uses: ./.github/workflows/ssh-setup.yml
+              with:
+                target_ips: "${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
+                ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+              
             - name: Download inventory artifact
               uses: actions/download-artifact@v4
               with:
                 name: ansible-inventory
                 path: ansible
-                
+
             - name: Run Ansible Playbook
               run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
               env:
