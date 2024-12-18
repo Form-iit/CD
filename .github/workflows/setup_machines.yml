@@ -14,6 +14,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
+            # Checkout to the repo
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
@@ -23,26 +24,20 @@ jobs:
               uses: dawidd6/action-download-artifact@v6
               with:
                 name: terraform-outputs
-                github_token: ${{ secrets.GITHUB_TOKEN }}
-                run_id: ${{ github.event.workflow_run.id }}
+                github_token: ${{ secrets.GITHUB_TOKEN }} #This is needed because we're downloading an artifact from a different workflow.The GITHUB_TOKEN is automatically provided by GitHub Actions. Without this token, the action wouldn't have permission to access artifacts from other workflows
+                run_id: ${{ github.event.workflow_run.id }} #contains the ID of the workflow run that triggered this  workflow.
             
+            # Parse the json outputs
             - name: Parse Terraform Outputs
               id: parse-outputs
               run: |
+                # Use jq to extract IPs from within the parsed outputs
                 API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
                 EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
-
-                # First save IPs to outputs (before masking)
+                
+                # Save IPs to environment variables
                 echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
                 echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
-                
-                # Then mask the values for logs
-                echo "::add-mask::$API_GW_IP"
-                echo "::add-mask::$EUREKA_SERVER_IP"
-              
-            - name: Verify Output
-              run: |
-                echo "API_GW_IP from output: ${{ steps.parse-outputs.outputs.API_GW_IP }}"
         outputs:
             apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
             eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
@@ -59,29 +54,32 @@ jobs:
           - name: Fill inventory template
             id: set-ip
             run: | 
-              # Mask the IPs as soon as we receive them
-              echo "::add-mask::${{ needs.process-terraform-outputs.outputs.apiGwIP }}"
-              echo "::add-mask::${{ needs.process-terraform-outputs.outputs.eurekaIP }}"
-
+              # Create the ansible directory if it doesn't exist
               mkdir -p ansible
 
+              # read the inventory template then store it within INVENTORY_TEMPLATE variable
               INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
 
+              # Get the IP from the previous job
               API_GW_IP=${{ needs.process-terraform-outputs.outputs.apiGwIP }}
+              
+              # Replace placeholders within the inventory
               INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_SERVER_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.eurekaIP }}/g" | sed "s/API_GW_USER/${{ secrets.API_GW_HOST_USERNAME }}/g" | sed "s/EUREKA_USER/${{ secrets.EUREKA_HOST_USERNAME }}/g") 
               
+              # Write the final inventory file
               echo "$INVENTORY" > ansible/inventory
-
-              echo "$INVENTORY"
               
+              # Explicitly output the IP using the full syntax
               echo "API_GW_IP=$API_GW_IP" >> "$GITHUB_OUTPUT"
               
+          # Upload the inventory as an artifact
           - name: Upload inventory artifact
             uses: actions/upload-artifact@v4
             with:
               name: ansible-inventory
               path: ansible/inventory
 
+          # Debug step to verify output
           - name: Verify Output
             run: |
               echo "API_GW_IP from output: ${{ steps.set-ip.outputs.API_GW_IP }}"
@@ -92,14 +90,6 @@ jobs:
         needs: setup-ansible-inventory
         runs-on: ubuntu-latest
         steps:
-            - name: Debug Outputs
-              run: |
-                # Mask the IP at the start of this job
-                echo "::add-mask::${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
-                echo "API Gateway IP: ${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
-                echo "Full job context:"
-                echo '${{ toJson(needs) }}'
-
             - name: Create the ssh directory
               run: |
                 mkdir -p ~/.ssh
@@ -119,6 +109,7 @@ jobs:
               env:
                 API_GW_IP: ${{ needs.setup-ansible-inventory.outputs.apiGwIP }}
               run: | 
+                # Add target hosts to the known_hosts file to prevent host key verification issues
                 ssh-keyscan -H $API_GW_IP  >> ~/.ssh/known_hosts 
                 chmod 600 ~/.ssh/known_hosts
     
@@ -126,6 +117,7 @@ jobs:
         needs: setup-ansible-inventory
         runs-on: ubuntu-latest
         steps:
+
             - name: Set up Python
               uses: actions/setup-python@v4
             
@@ -142,16 +134,11 @@ jobs:
             - setup-ansible-inventory
         runs-on: ubuntu-latest
         steps:
+            # Checkout to the repo
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
                 ref: ${{ github.event.workflow_run.head_sha }}
-
-            - name: Download inventory artifact
-              uses: actions/download-artifact@v4
-              with:
-                name: ansible-inventory
-                path: ansible
                 
             - name: Run Ansible Playbook
               run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
