@@ -10,37 +10,37 @@ on:
 
 jobs:
     process-terraform-outputs:
-        if: github.event.workflow_run.conclusion == 'success'
-        runs-on: ubuntu-latest
+      if: github.event.workflow_run.conclusion == 'success'
+      runs-on: ubuntu-latest
 
-        steps:
-            # Checkout to the repo
-            - name: Checkout repository
-              uses: actions/checkout@v4
-              with:
-                ref: ${{ github.event.workflow_run.head_sha }}
-            
-            - name: Download build artifact
-              uses: dawidd6/action-download-artifact@v6
-              with:
-                name: terraform-outputs
-                github_token: ${{ secrets.GITHUB_TOKEN }} #This is needed because we're downloading an artifact from a different workflow.The GITHUB_TOKEN is automatically provided by GitHub Actions. Without this token, the action wouldn't have permission to access artifacts from other workflows
-                run_id: ${{ github.event.workflow_run.id }} #contains the ID of the workflow run that triggered this  workflow.
-            
-            # Parse the json outputs
-            - name: Parse Terraform Outputs
-              id: parse-outputs
-              run: |
-                # Use jq to extract IPs from within the parsed outputs
-                API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
-                EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
-                
-                # Save IPs to environment variables
-                echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
-                echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
-        outputs:
-            apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
-            eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
+      steps:
+          # Checkout to the repo
+          - name: Checkout repository
+            uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.workflow_run.head_sha }}
+          
+          - name: Download build artifact
+            uses: dawidd6/action-download-artifact@v6
+            with:
+              name: terraform-outputs
+              github_token: ${{ secrets.GITHUB_TOKEN }} #This is needed because we're downloading an artifact from a different workflow.The GITHUB_TOKEN is automatically provided by GitHub Actions. Without this token, the action wouldn't have permission to access artifacts from other workflows
+              run_id: ${{ github.event.workflow_run.id }} #contains the ID of the workflow run that triggered this  workflow.
+          
+          # Parse the json outputs
+          - name: Parse Terraform Outputs
+            id: parse-outputs
+            run: |
+              # Use jq to extract IPs from within the parsed outputs
+              API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
+              EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
+              
+              # Save IPs to environment variables
+              echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
+              echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
+      outputs:
+          apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
+          eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
         
     setup-ansible-inventory:
       needs: process-terraform-outputs
@@ -79,78 +79,62 @@ jobs:
               name: ansible-inventory
               path: ansible/inventory
 
-          # Debug step to verify output
-          - name: Verify Output
-            run: |
-              echo "API_GW_IP from output: ${{ steps.set-ip.outputs.API_GW_IP }}"
       outputs:
         apiGwIP: ${{ steps.set-ip.outputs.API_GW_IP }}
     
-    # setup-ansible:
-    #     needs: setup-ansible-inventory
-    #     runs-on: ubuntu-latest
-    #     steps:
-
-    #         - name: Set up Python
-    #           uses: actions/setup-python@v4
-            
-    #         - name: Set up Ansible
-    #           run: |
-    #             pip install ansible
-    #             ansible-galaxy collection install community.docker
-    #             ansible-galaxy collection install community.general
+    setup-ansible:
+      needs: setup-ansible-inventory
+      runs-on: ubuntu-latest
+      steps:
+          - name: Set up Python
+            uses: actions/setup-python@v4
+        
+          - name: Set up Ansible
+            run: |
+              pip install ansible
+              ansible-galaxy collection install community.docker
+              ansible-galaxy collection install community.general
     
     run-docker-playbook:
-        needs: 
-            #- setup-ansible
-            - setup-ansible-inventory
-        runs-on: ubuntu-latest
-        steps:
-            # Checkout to the repo
-            - name: Checkout repository
-              uses: actions/checkout@v4
-              with:
-                ref: ${{ github.event.workflow_run.head_sha }}
+      needs: 
+          - setup-ansible
+          - setup-ansible-inventory
+      runs-on: ubuntu-latest
+      steps:
+          - name: Checkout repository
+            uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.workflow_run.head_sha }}
 
-            - name: Download ansible-inventory artifact
-              uses: actions/download-artifact@v4
-              with:
-                name: ansible-inventory
+          - name: Download ansible-inventory artifact
+            uses: actions/download-artifact@v4
+            with:
+              name: ansible-inventory
 
-            - name: Setup SSH
-              id: setup-ssh
-              uses: ./.github/actions/setup-ssh
-              with:
-                target_ips: "${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
-                ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          - name: Setup SSH
+            id: setup-ssh
+            uses: ./.github/actions/setup-ssh
+            with:
+              target_ips: "${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
+              ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-            - name: List ssh key path
-              run: |
-                echo ${{ steps.setup-ssh.outputs.ssh_key_path }}  # this doesn't work
-                echo "==================================================================================>"
-                ls -la ~/.ssh/id_rsa
-            - name: Inject SSH key file into the inventory
-              env: 
-                SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
-              run: |
-                # read the inventory template then store it within INVENTORY_TEMPLATE variable
-                INVENTORY_TEMPLATE=$(cat inventory)
+          - name: Inject SSH key file into the inventory
+            env: 
+              SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
+            run: |
+              # read the inventory template then store it within INVENTORY_TEMPLATE variable
+              INVENTORY_TEMPLATE=$(cat inventory)
 
-                echo "$INVENTORY_TEMPLATE"
-                
-                # Replace placeholders within the inventory
-                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s|SSH_PRIVATE_KEY_PATH|$SSH_PRIVATE_KEY_FILE_PATH|g")
-                
-                # Make the ansible directory if it doesn't exist
-                mkdir -p ansible 
+              # Replace placeholders within the inventory
+              INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s|SSH_PRIVATE_KEY_PATH|$SSH_PRIVATE_KEY_FILE_PATH|g")
+              
+              # Make the ansible directory if it doesn't exist
+              mkdir -p ansible 
 
-                # Write the final inventory file
-                echo "$INVENTORY" > ansible/inventory
+              # Write the final inventory file
+              echo "$INVENTORY" > ansible/inventory
 
-                # read the file
-                cat ansible/inventory
-
-            # - name: Run Ansible Playbook
-            #   run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
-            #   env:
-            #     ANSIBLE_HOST_KEY_CHECKING: true
+          - name: Run Ansible Playbook
+            run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
+            env:
+              ANSIBLE_HOST_KEY_CHECKING: true
