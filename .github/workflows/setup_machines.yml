@@ -119,33 +119,12 @@ jobs:
                 target_ips: "${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
                 ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
               
-            - name: Download inventory artifact
-              uses: actions/download-artifact@v4
-              with:
-                name: ansible-inventory
-                path: inventory
-            
-            - name: List contents of inventory directory
-              run: | 
-                echo "1:"
-                ls -R inventory
-                echo "2:"
-                ls -R ansible
-                echo "3:"
-                ls
-                echo "4:"
-                cat inventory/ansible-inventory
-                echo "5:"
-                cat ansible/inventory
-                echo "6:"
-                ls
-              
             - name: Inject SSH key file into the inventory
               env: 
                 SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
               run: |
                 # read the inventory template then store it within INVENTORY_TEMPLATE variable
-                INVENTORY_TEMPLATE=$(cat inventory/ansible-inventory)
+                INVENTORY_TEMPLATE=$(cat ansible/inventory)
                 
                 # Replace placeholders within the inventory
                 INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/SSH_PRIVATE_KEY_PATH/$SSH_PRIVATE_KEY_FILE_PATH/g") 
