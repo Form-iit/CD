@@ -124,6 +124,9 @@ jobs:
               with:
                 target_ips: "${{ needs.setup-ansible-inventory.outputs.apiGwIP }}"
                 ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+            - name: List all files
+              run: ls -lR
               
             - name: Inject SSH key file into the inventory
               env: 
