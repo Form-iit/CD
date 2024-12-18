@@ -124,6 +124,13 @@ jobs:
               with:
                 name: ansible-inventory
 
+            - name: Debug - List files
+              run: |
+                echo "Current directory contents:"
+                ls -la
+                echo "Current working directory:"
+                pwd
+
             - name: Inject SSH key file into the inventory
               env: 
                 SSH_PRIVATE_KEY_FILE_PATH: ${{ steps.setup-ssh.outputs.ssh_key_path }}
