@@ -139,6 +139,12 @@ jobs:
               uses: actions/checkout@v4
               with:
                 ref: ${{ github.event.workflow_run.head_sha }}
+
+            - name: Upload inventory artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: ansible-inventory
+                path: ansible/inventory 
                 
             - name: Run Ansible Playbook
               run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml --private-key=~/.ssh/id_rsa
