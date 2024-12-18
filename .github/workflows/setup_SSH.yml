@@ -22,6 +22,12 @@ jobs:
   ssh-setup:
     runs-on: ubuntu-latest
     steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      
       - name: Add target hosts to known-hosts
         env:
           TARGET_IPS: ${{ inputs.target_ips }}
