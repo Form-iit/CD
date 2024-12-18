@@ -47,44 +47,50 @@ jobs:
             eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
         
     setup-ansible-inventory:
-        needs: process-terraform-outputs
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
-              with:
-                ref: ${{ github.event.workflow_run.head_sha }}
+      needs: process-terraform-outputs
+      runs-on: ubuntu-latest
+      steps:
+          - name: Checkout repository
+            uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.workflow_run.head_sha }}
 
-            - name: Fill inventory template
-              id: fill-inventory
-              run: | 
-                # Create the ansible directory if it doesn't exist
-                mkdir -p ansible
+          - name: Fill inventory template
+            id: set-ip
+            run: | 
+              # Create the ansible directory if it doesn't exist
+              mkdir -p ansible
 
-                # read the inventory template then store it within INVENTORY_TEMPLATE variable
-                INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
+              # read the inventory template then store it within INVENTORY_TEMPLATE variable
+              INVENTORY_TEMPLATE=$(cat src/ansible/inventory.tpl)
 
-                # Get the IP from the previous job
-                API_GW_IP=${{ needs.process-terraform-outputs.outputs.apiGwIP }}
-                
-                # Replace placeholders within the inventory
-                INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_SERVER_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.eurekaIP }}/g" | sed "s/API_GW_USER/${{ secrets.API_GW_HOST_USERNAME }}/g" | sed "s/EUREKA_USER/${{ secrets.EUREKA_HOST_USERNAME }}/g") 
-                
-                # Set the output for the IP
-                echo "apiGwIP=$API_GW_IP" >> $GITHUB_OUTPUT
-                
-                # Write the final inventory file
-                echo "$INVENTORY" > ansible/inventory
-                
-            # Upload the inventory as an artifact
-            - name: Upload inventory artifact
-              uses: actions/upload-artifact@v4
-              with:
-                name: ansible-inventory
-                path: ansible/inventory
-                  
-        outputs:
-          apiGwIP: ${{ steps.fill-inventory.outputs.apiGwIP }}
+              # Get the IP from the previous job
+              API_GW_IP=${{ needs.process-terraform-outputs.outputs.apiGwIP }}
+              
+              # Replace placeholders within the inventory
+              INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_SERVER_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.eurekaIP }}/g" | sed "s/API_GW_USER/${{ secrets.API_GW_HOST_USERNAME }}/g" | sed "s/EUREKA_USER/${{ secrets.EUREKA_HOST_USERNAME }}/g") 
+              
+              # Write the final inventory file
+              echo "$INVENTORY" > ansible/inventory
+
+              echo "$INVENTORY"
+              
+              # Explicitly output the IP using the full syntax
+              echo "API_GW_IP=$API_GW_IP" >> "$GITHUB_OUTPUT"
+              
+          # Upload the inventory as an artifact
+          - name: Upload inventory artifact
+            uses: actions/upload-artifact@v4
+            with:
+              name: ansible-inventory
+              path: ansible/inventory
+
+          # Debug step to verify output
+          - name: Verify Output
+            run: |
+              echo "API_GW_IP from output: ${{ steps.set-ip.outputs.API_GW_IP }}"
+      outputs:
+        apiGwIP: ${{ steps.set-ip.outputs.API_GW_IP }}
 
     setup-ssh:
         needs: setup-ansible-inventory
