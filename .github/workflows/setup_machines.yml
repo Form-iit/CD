@@ -128,8 +128,8 @@ jobs:
               run: |
                 echo "Current directory contents:"
                 ls -la
-                echo "Current working directory:"
-                pwd
+                ls -al inventory
+                ls -al src
 
             - name: Inject SSH key file into the inventory
               env: 
