@@ -6,7 +6,7 @@ resource "aws_instance" "nat_instance" {
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.natSecGrp.id]
   key_name               = aws_key_pair.my_key.key_name
-  
+
   # Disable source/dest check for NAT
   source_dest_check = false
 
@@ -30,7 +30,7 @@ resource "aws_instance" "nat_instance" {
               sudo iptables -t nat -F
               
               # Making a catchall rule for routing and masking the private IP
-              sudo iptables -t nat -A POSTROUTING -o eth0 -s 10.0.1.0/24 -j MASQUERADE
+              sudo iptables -t nat -A POSTROUTING -o ens5 -s 10.0.1.0/24 -j MASQUERADE
               
               # Save iptables rules
               sudo netfilter-persistent save
