@@ -5,7 +5,8 @@ resource "aws_instance" "nat_instance" {
 
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.natSecGrp.id]
-
+  key_name               = aws_key_pair.my_key.key_name
+  
   # Disable source/dest check for NAT
   source_dest_check = false
 
