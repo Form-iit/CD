@@ -15,12 +15,16 @@ resource "aws_instance" "nat_instance" {
 
   user_data = <<-EOF
               #!/bin/bash
-              
-              # Updating the system
-              sudo apt-get update && sudo apt-get upgrade -y
+
+              # Configure debconf for non-interactive installation
+              echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+              echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
               
               # Installing iptables
-              sudo apt-get install -y iptables-persistent
+              export DEBIAN_FRONTEND=noninteractive
+              sudo apt update
+              sudo apt install -y iptables-persistent net-tools
+
               
               # Turning on IP Forwarding
               echo "net.ipv4.ip_forward = 1" | sudo tee -a /etc/sysctl.conf
@@ -28,12 +32,19 @@ resource "aws_instance" "nat_instance" {
               
               # Flush nat rules
               sudo iptables -t nat -F
+
+              # Getting the primary network interface
+              INTERFACE=$(ip route get 8.8.8.8 | awk -- '{printf $5}')
+
+              # Getting the private subnet CIDR
+              PRIVATE_SUBNET_CIDR=${aws_subnet.private_subnet.cidr_block} 
               
               # Making a catchall rule for routing and masking the private IP
-              sudo iptables -t nat -A POSTROUTING -o ens5 -s 10.0.1.0/24 -j MASQUERADE
+              sudo iptables -t nat -A POSTROUTING -o $INTERFACE -s $PRIVATE_SUBNET_CIDR -j MASQUERADE
               
               # Save iptables rules
               sudo netfilter-persistent save
+              sudo systemctl enable netfilter-persistent
               sudo netfilter-persistent reload
               EOF
 
