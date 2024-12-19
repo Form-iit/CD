@@ -14,22 +14,26 @@ resource "aws_instance" "nat_instance" {
 
   user_data = <<-EOF
               #!/bin/bash
-
+              
               # Updating the system
-              sudo yum update -y
-
+              sudo apt-get update && sudo apt-get upgrade -y
+              
               # Installing iptables
-              sudo yum install iptables-services -y 
-
+              sudo apt-get install -y iptables-persistent
+              
               # Turning on IP Forwarding
               echo "net.ipv4.ip_forward = 1" | sudo tee -a /etc/sysctl.conf
               sudo sysctl -p
-
+              
               # Flush nat rules
-              iptables -t nat -F
+              sudo iptables -t nat -F
               
               # Making a catchall rule for routing and masking the private IP
               sudo iptables -t nat -A POSTROUTING -o eth0 -s 10.0.1.0/24 -j MASQUERADE
+              
+              # Save iptables rules
+              sudo netfilter-persistent save
+              sudo netfilter-persistent reload
               EOF
 
   tags = {
