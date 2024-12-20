@@ -3,18 +3,50 @@
   become: true
 
   tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Check if Docker Compose is installed
+      ansible.builtin.command: docker-compose --version
+      register: compose_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Check if Git is installed
+      ansible.builtin.command: git --version
+      register: git_check
+      ignore_errors: true
+      changed_when: false
+    
+    - name: Display current versions
+      ansible.builtin.debug:
+        msg: 
+          - "Docker version: {{ docker_check.stdout if docker_check.rc == 0 else 'Not installed' }}"
+          - "Docker Compose version: {{ compose_check.stdout if compose_check.rc == 0 else 'Not installed' }}"
+          - "Git version: {{ git_check.stdout if git_check.rc == 0 else 'Not installed' }}"
+
+    - name: Set installation required flag
+      ansible.builtin.set_fact:
+        install_required: "{{ docker_check.rc != 0 or compose_check.rc != 0 or git_check.rc != 0 }}"
+      
     - name: Update package cache
       ansible.builtin.apt:
         update_cache: true
+      when: install_required
 
     - name: Upgrade all packages
       ansible.builtin.apt:
         upgrade: dist
+      when: install_required
 
     - name: "Install Git"
       ansible.builtin.apt:
         name: "git"
         state: present
+      when: git_check.rc != 0
 
     - name: Install required system packages
       ansible.builtin.apt:
@@ -25,28 +57,33 @@
           - lsb-release
         state: present
         update_cache: true
+      when: install_required
 
     - name: Create keyrings directory
       ansible.builtin.file:
         path: /etc/apt/keyrings
         state: directory
         mode: '0755'
+        when: docker_check.rc != 0
 
     - name: Download Docker GPG key
       ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
         dest: /tmp/docker.gpg
         mode: '0644'
+        when: docker_check.rc != 0
 
     - name: Add Docker's official GPG key
       ansible.builtin.command:
         cmd: gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.gpg
         creates: /etc/apt/keyrings/docker.gpg
+        when: docker_check.rc != 0
 
     - name: Set Docker repository permissions
       ansible.builtin.file:
         path: /etc/apt/keyrings/docker.gpg
         mode: '0644'
+        when: docker_check.rc != 0
 
     - name: Add Docker repository to sources.list.d
       ansible.builtin.shell: |
@@ -59,10 +96,12 @@
       args:
         creates: /etc/apt/sources.list.d/docker.list
         executable: /bin/bash
+        when: docker_check.rc != 0
 
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
+        when: docker_check.rc != 0
 
     - name: Install Docker packages
       ansible.builtin.apt:
@@ -74,6 +113,7 @@
           - docker-compose-plugin
         state: present
         update_cache: true
+        when: docker_check.rc != 0
 
     - name: Ensure Docker service is started and enabled
       ansible.builtin.systemd:
@@ -86,30 +126,24 @@
         name: ubuntu
         groups: "sudo,docker"
         append: true
+      when: docker_check.rc != 0
 
     - name: "Force Ansible to reconnect"
       ansible.builtin.meta: reset_connection
-
-    - name: Get Docker version
-      ansible.builtin.command: docker --version
-      changed_when: false
-      register: docker_version_output
-
-    - name: Show Docker version
-      ansible.builtin.debug:
-        msg: "Docker version: {{ docker_version_output.stdout }}"
+      when: docker_check.rc != 0
 
     - name: "Download Docker Compose"
       ansible.builtin.get_url:
         url: "https://github.com/docker/compose/releases/latest/download/docker-compose-{{ ansible_system | lower }}-{{ ansible_architecture }}"
         dest: /usr/local/bin/docker-compose
         mode: '0755'
+      when: compose_check.rc != 0
 
-    - name: Check Docker Compose version
-      ansible.builtin.command: docker-compose --version
-      changed_when: false
-      register: docker_compose_version_output
-
-    - name: Output Docker Compose version
+    - name: Final version check
       ansible.builtin.debug:
-        msg: "Docker Compose version: {{ docker_compose_version_output.stdout }}"
+        msg:
+          - "Installation complete. Current versions:"
+          - "Docker: {{ lookup('pipe', 'docker --version') }}"
+          - "Docker Compose: {{ lookup('pipe', 'docker-compose --version') }}"
+          - "Git: {{ lookup('pipe', 'git --version') }}"
+      when: install_required
