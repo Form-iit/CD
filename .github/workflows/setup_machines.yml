@@ -132,6 +132,12 @@ jobs:
 
               # Write the final inventory file
               echo "$INVENTORY" > ansible/inventory
+              
+          - name: Upload new inventory artifact
+            uses: actions/upload-artifact@v4
+            with:
+              name: ansible-inventory
+              path: ansible/inventory
 
           - name: Run Ansible Playbook
             run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
