@@ -23,8 +23,13 @@ jobs:
             with:
               name: ansible-inventory
               github_token: ${{ secrets.GITHUB_TOKEN }}
+              workflow: "Ansible: setup docker on machines"
               run_id: ${{ github.event.workflow_run.id }}
-
+          
+          - name: List runner files
+            run: |
+              ls -al -R
+          
           - name: log inventory
             run: |
               cat ansible/inventory

@@ -1,7 +1,6 @@
 name: "Ansible: setup docker on machines"
 
 on:
-    workflow_dispatch: 
     workflow_run:
         workflows:
             - Infrastructure Deployment
@@ -18,7 +17,7 @@ jobs:
           - name: Checkout repository
             uses: actions/checkout@v4
             with:
-              ref: ${{ github.event.workflow_run.head_sha }}
+              ref: ${{ github.event.workflow_run.head_branch }}
           
           - name: Download build artifact
             uses: dawidd6/action-download-artifact@v6
@@ -49,7 +48,7 @@ jobs:
           - name: Checkout repository
             uses: actions/checkout@v4
             with:
-              ref: ${{ github.event.workflow_run.head_sha }}
+              ref: ${{ github.event.workflow_run.head_branch }}
 
           - name: Fill inventory template
             id: set-ip
@@ -104,7 +103,7 @@ jobs:
           - name: Checkout repository
             uses: actions/checkout@v4
             with:
-              ref: ${{ github.event.workflow_run.head_sha }}
+              ref: ${{ github.event.workflow_run.head_branch }}
 
           - name: Download ansible-inventory artifact
             uses: actions/download-artifact@v4
