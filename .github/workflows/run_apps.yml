@@ -3,7 +3,7 @@ name: Run Apps
 on:
     workflow_run:
         workflows: 
-            - Setup Machines
+            - "Ansible: setup docker on machines"
         types:
             - completed
 
