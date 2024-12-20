@@ -8,13 +8,24 @@ on:
             - completed
 
 jobs:
-    run_apps:
+    run_eureka:
         if: github.event.workflow_run.conclusion == 'success'
         runs-on: ubuntu-latest
 
         steps:
-          - name: Debug workflow context
+          - name: Checkout repository
+            uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.workflow_run.head_branch }}
+          
+          - name: download inventory
+            uses: dawidd6/action-download-artifact@v6
+            with:
+              name: ansible-inventory
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+              run_id: ${{ github.event.workflow_run.id }}
+
+          - name: log inventory
             run: |
-              echo "Workflow Run Head Branch: ${{ github.event.workflow_run.head_branch }}"
-              echo "Workflow Run Head SHA: ${{ github.event.workflow_run.head_sha }}"
-              echo "Event name: ${{ github.ref }}"
+              cat ansible/inventory
+              echo "Inventory file has been downloaded"
