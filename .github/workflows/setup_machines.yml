@@ -37,6 +37,18 @@ jobs:
               # Save IPs to environment variables
               echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
               echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
+          
+          # Add this new step to save outputs to a file
+          - name: Save IPs as json
+            run: |
+              echo "{\"apiGwIP\":\"${{ steps.parse-outputs.outputs.API_GW_IP }}\",\"eurekaIP\":\"${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}\"}" > instances.json
+
+          # Upload the outputs as an artifact
+          - name: Upload outputs
+            uses: actions/upload-artifact@v4
+            with:
+              name: instances
+              path: instances.json
       outputs:
           apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
           eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
