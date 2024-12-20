@@ -3,7 +3,7 @@ name: Run Apps
 on:
     workflow_run:
         workflows: 
-            - Infrastructure Deployment
+            - Setup Machines
         types:
             - completed
 
