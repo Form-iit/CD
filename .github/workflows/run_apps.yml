@@ -1,4 +1,4 @@
-name: Run Apps
+name: Run Services
 
 on:
     workflow_run:
@@ -8,38 +8,81 @@ on:
             - completed
 
 jobs:
-    run_eureka:
-        if: github.event.workflow_run.conclusion == 'success'
-        runs-on: ubuntu-latest
+  get-eureka-host-ip:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
 
-        steps:
-          - name: Checkout repository
-            uses: actions/checkout@v4
-            with:
-              ref: ${{ github.event.workflow_run.head_branch }}
-              
-          - name: download inventory
-            uses: dawidd6/action-download-artifact@v6
-            with:
-              name: ansible-inventory
-              github_token: ${{ secrets.GITHUB_TOKEN }}
-              workflow: "Ansible: setup docker on machines"
-              run_id: ${{ github.event.workflow_run.id }}
-            
-          - name: log inventory
-            run: |
-              cat inventory
-              echo "Inventory file has been downloaded"
-          
-          - name: download inventory
-            uses: dawidd6/action-download-artifact@v6
-            with:
-              name: instances
-              github_token: ${{ secrets.GITHUB_TOKEN }}
-              workflow: "Ansible: setup docker on machines"
-              run_id: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      - name: download machine instance IPs
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: instances
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: "Ansible: setup docker on machines"
+          run_id: ${{ github.event.workflow_run.id }}
 
-          - name: log instances
-            run: |
-              cat instances.json
-              echo "Instances file has been downloaded"
+      - name: Extract Eureka IP
+        id: extract-eureka-ip
+        run: |
+          EUREKA_IP=$(jq -r '.eurekaIP' instances.json)
+          echo "Eureka IP is $EUREKA_IP"
+          echo $EUREKA_IP > $GITHUB_OUTPUT
+    
+    outputs:
+      eurekaIP: ${{ steps.extract-eureka-ip.outputs.EUREKA_IP }}
+  
+  setup-ssh:
+    needs: [get-eureka-host-ip]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      - name: setup ssh keys and known hosts
+        uses: ./.github/actions/setup-ssh
+        with:
+          target_ips: ${{ needs.get-eureka-host-ip.outputs.eurekaIP }}
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+  
+  get-ansible-inventory:
+    needs: 
+      - setup-ssh
+      - get-eureka-host-ip
+    runs-on: ubuntu-latest
+    env:
+      INVENTORY_PATH: ansible/inventory
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      - name: setup ansible inventory
+        uses: ./.github/actions/setup-ansible-inventory
+        with:
+          target_ips: ${{ needs.get-eureka-host-ip.outputs.eurekaIP }}
+          inventory_path: ${{ env.INVENTORY_PATH }}
+
+    outputs:
+      inventoryPath: ${{ env.INVENTORY_PATH }}
+  
+  run-eureka:
+    needs: get-ansible-inventory
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      - name: run eureka
+        run: |
+          ansible-playbook -i ${{ needs.get-ansible-inventory.outputs.inventoryPath }} ansible/playbooks/run-eureka.yml
