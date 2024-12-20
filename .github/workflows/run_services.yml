@@ -1,0 +1,119 @@
+name: Run Services
+
+on:
+    workflow_run:
+        workflows: 
+            - "Ansible: setup docker on machines"
+        types:
+            - completed
+
+jobs:
+  get-hosts-IPs:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      - name: download machine instances IPs
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: instances
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: "Ansible: setup docker on machines"
+          run_id: ${{ github.event.workflow_run.id }}
+
+      - name: Extract IPs
+        id: extract-ips
+        run: |
+          EUREKA_IP=$(jq -r '.eurekaIP' instances.json)
+          API_GW_IP=$(jq -r '.apiGwIP' instances.json)
+          echo "EUREKA_IP=$EUREKA_IP" >> $GITHUB_OUTPUT
+          echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
+    outputs:
+      eurekaIP: ${{ steps.extract-ips.outputs.EUREKA_IP }}
+      apiGwIP: ${{ steps.extract-ips.outputs.API_GW_IP }}
+
+  prep-eureka:
+    needs: get-hosts-IPs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Download env template
+        run: |
+          wget https://raw.githubusercontent.com/Form-iit/service-discovery/refs/heads/main/docker-compose.template.env -O .env.template
+        
+      - name: Prepare environment file
+        env:
+          eurekaIP: ${{ needs.get-hosts-IPs.outputs.eurekaIP }}
+        run: |
+          sed -i "s/placeholder_server_port/${{ secrets.EUREKA_SERVER_PORT }}/g" .env.template
+          sed -i "s/placeholder_ip_address/$eurekaIP/g" .env.template
+          sed -i "s/placeholder_serviceurl/http:\/\/$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}\/eureka/g" .env.template
+          sed -i "s/placeholder_username/${{ secrets.EUREKA_ADMIN_USERNAME }}/g" .env.template
+          sed -i "s/placeholder_password/${{ secrets.EUREKA_ADMIN_PASSWORD }}/g" .env.template
+          mv .env.template .env
+      
+      - name: Debug file existence
+        run: |
+          pwd
+          ls -la
+          echo "Content of .env.template:"
+          cat .env.template || echo "File not found"
+          
+      - name: Upload env file
+        uses: actions/upload-artifact@v4
+        with:
+          name: .env
+          path: ./.env
+          overwrite: true
+          retention-days: 1
+          include-hidden-files: true
+
+  run-eureka:
+    needs: 
+      - get-hosts-IPs
+      - prep-eureka
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      - name: download .env file
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: .env
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.run_id }}  # Current run ID, not workflow_run.id
+          path: ./src/ansible/playbooks/
+      
+      - name: download ansible inventory
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: ansible-inventory
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          workflow: "Ansible: setup docker on machines"
+      
+      - name: list files
+        run: |
+          ls -la
+    
+      - name: setup ssh keys and known hosts
+        uses: ./.github/actions/setup-ssh
+        with:
+          target_ips: ${{ needs.get-hosts-IPs.outputs.apiGwIP }}
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: run eureka
+        run: |
+          ansible-playbook -i inventory src/ansible/playbooks/run_eureka.yml

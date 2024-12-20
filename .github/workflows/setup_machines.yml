@@ -1,7 +1,6 @@
 name: "Ansible: setup docker on machines"
 
 on:
-    workflow_dispatch: 
     workflow_run:
         workflows:
             - Infrastructure Deployment
@@ -18,7 +17,7 @@ jobs:
           - name: Checkout repository
             uses: actions/checkout@v4
             with:
-              ref: ${{ github.event.workflow_run.head_sha }}
+              ref: ${{ github.event.workflow_run.head_branch }}
           
           - name: Download build artifact
             uses: dawidd6/action-download-artifact@v6
@@ -38,6 +37,20 @@ jobs:
               # Save IPs to environment variables
               echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
               echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
+          
+          # Add this new step to save outputs to a file
+          - name: Save IPs as json
+            run: |
+              echo "{\"apiGwIP\":\"${{ steps.parse-outputs.outputs.API_GW_IP }}\",\"eurekaIP\":\"${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}\"}" > instances.json
+
+          # Upload the outputs as an artifact
+          - name: Upload outputs
+            uses: actions/upload-artifact@v4
+            with:
+              name: instances
+              path: instances.json
+              overwrite: true
+              retention-days: 1
       outputs:
           apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
           eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
@@ -49,7 +62,7 @@ jobs:
           - name: Checkout repository
             uses: actions/checkout@v4
             with:
-              ref: ${{ github.event.workflow_run.head_sha }}
+              ref: ${{ github.event.workflow_run.head_branch }}
 
           - name: Fill inventory template
             id: set-ip
@@ -78,6 +91,8 @@ jobs:
             with:
               name: ansible-inventory
               path: ansible/inventory
+              overwrite: true
+              retention-days: 1
 
       outputs:
         apiGwIP: ${{ steps.set-ip.outputs.API_GW_IP }}
@@ -104,7 +119,7 @@ jobs:
           - name: Checkout repository
             uses: actions/checkout@v4
             with:
-              ref: ${{ github.event.workflow_run.head_sha }}
+              ref: ${{ github.event.workflow_run.head_branch }}
 
           - name: Download ansible-inventory artifact
             uses: actions/download-artifact@v4
@@ -133,6 +148,14 @@ jobs:
 
               # Write the final inventory file
               echo "$INVENTORY" > ansible/inventory
+
+          - name: Upload new inventory artifact
+            uses: actions/upload-artifact@v4
+            with:
+              name: ansible-inventory
+              path: ansible/inventory
+              overwrite: true
+              retention-days: 1
 
           - name: Run Ansible Playbook
             run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
