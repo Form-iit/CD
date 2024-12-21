@@ -75,6 +75,7 @@ jobs:
       - name: locate ansible inventory file
         run: |
           echo "inventory file is located at $GITHUB_WORKSPACE/inventory"
+          chmod 600 inventory
 
       - name: ls
         run: |
