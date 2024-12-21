@@ -101,7 +101,11 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           run_id: ${{ github.event.workflow_run.id }}
           workflow: "Ansible: setup docker on machines"
-
+      
+      - name: list files
+        run: |
+          ls -la
+    
       - name: setup ssh keys and known hosts
         uses: ./.github/actions/setup-ssh
         with:
