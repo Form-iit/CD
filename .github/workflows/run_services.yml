@@ -60,11 +60,18 @@ jobs:
           sed -i "s/placeholder_username/${{ secrets.EUREKA_ADMIN_USERNAME }}/g" .env.template
           sed -i "s/placeholder_password/${{ secrets.EUREKA_ADMIN_PASSWORD }}/g" .env.template
       
+      - name: Debug file existence
+        run: |
+          pwd
+          ls -la
+          echo "Content of .env.template:"
+          cat .env.template || echo "File not found"
+          
       - name: Upload env file
         uses: actions/upload-artifact@v4
         with:
           name: .env
-          path: .env.template
+          path: "**/.env.template"
           overwrite: true
           retention-days: 1
 
