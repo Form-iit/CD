@@ -104,9 +104,6 @@ jobs:
 
       - name: setup ssh keys and known hosts
         uses: ./.github/actions/setup-ssh
-
-      - name: setup ssh keys and known hosts
-        uses: ./.github/actions/setup-ssh
         with:
           target_ips: ${{ needs.get-hosts-IPs.outputs.apiGwIP }}
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
