@@ -18,7 +18,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
       
-      - name: download machine instance IPs
+      - name: download machine instances IPs
         uses: dawidd6/action-download-artifact@v6
         with:
           name: instances
@@ -65,11 +65,14 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
       
-      - name: setup ansible inventory
-        uses: ./.github/actions/setup-ansible-inventory
+      - name: download ansible inventory
+        uses: dawidd6/action-download-artifact@v6
         with:
-          target_ips: ${{ needs.get-eureka-host-ip.outputs.eurekaIP }}
-          inventory_path: ${{ env.INVENTORY_PATH }}
+          name: ansible-inventory
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          workflow: "Ansible: setup docker on machines"
+          path: $INVENTORY_PATH
 
     outputs:
       inventoryPath: ${{ env.INVENTORY_PATH }}
