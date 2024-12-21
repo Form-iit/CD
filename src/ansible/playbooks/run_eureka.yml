@@ -1,71 +1,93 @@
 - name: Run Eureka server's docker compose
-  hosts: eureka_server
+  hosts: apt
   become: true
-  become_user: ec2-user
 
   tasks:
     - name: Ensure eureka directory exists
-      file:
+      ansible.builtin.file:
         path: "~/eureka"
         state: directory
+        mode: '0755'
 
     - name: Copy .env file to target machine
-      copy:
+      ansible.builtin.copy:
         src: .env
         dest: "~/eureka/.env"
+        mode: '0644'
 
     - name: Pull Docker image from Docker Hub
-      docker_image:
+      community.docker.docker_image:
         name: "diamobachar/service-discovery:latest"
         source: pull
 
     - name: Fetch Docker Compose file from GitHub
-      get_url:
+      ansible.builtin.get_url:
         url: "https://raw.githubusercontent.com/Form-iit/service-discovery/main/docker-compose.yml"
         dest: "~/eureka/docker-compose.yml"
+        mode: '0644'
+
+    - name: Modify Docker Compose file to use pulled image
+      ansible.builtin.lineinfile:
+        path: "~/eureka/docker-compose.yml"
+        regexp: '^(\s*)build:'
+        line: '\1image: diamobachar/service-discovery:latest'
+        backrefs: true
+        state: present
+
+    - name: Remove build context section if exists
+      ansible.builtin.lineinfile:
+        path: "~/eureka/docker-compose.yml"
+        regexp: '^\s*context:'
+        state: absent
+
+    - name: Remove dockerfile section if exists
+      ansible.builtin.lineinfile:
+        path: "~/eureka/docker-compose.yml"
+        regexp: '^\s*dockerfile:'
+        state: absent
 
     - name: Start Docker Compose
-      community.docker.docker_compose:
+      community.docker.docker_compose_v2:
         project_src: "~/eureka"
-        env_file: "~/eureka/.env"
-        pull: yes
+        env_files: ["~/eureka/.env"]
+        pull: always
         state: present
-    
+
     - name: Load Eureka credentials
       block:
         - name: Read Eureka username
-          lineinfile:
-            path: ~/eureka/.env
-            regexp: '^EUREKA_ADMIN_USERNAME='
-            state: present
+          ansible.builtin.shell:
+            cmd: set -o pipefail && grep "^EUREKA_ADMIN_USERNAME=" ~/eureka/.env | cut -d'=' -f2
+            executable: /bin/bash
           register: username_line
+          changed_when: false
 
         - name: Read Eureka password
-          lineinfile:
-            path: ~/eureka/.env
-            regexp: '^EUREKA_ADMIN_PASSWORD='
-            state: present
+          ansible.builtin.shell:
+            cmd: set -o pipefail && grep "^EUREKA_ADMIN_PASSWORD=" ~/eureka/.env | cut -d'=' -f2
+            executable: /bin/bash
           register: password_line
+          changed_when: false
 
         - name: Set credentials
-          set_fact:
-            credentials:
-              username: "{{ username_line.line.split('=')[1] }}"
-              password: "{{ password_line.line.split('=')[1] }}"
+          ansible.builtin.set_fact:
+            eureka_credentials:
+              username: "{{ username_line.stdout }}"
+              password: "{{ password_line.stdout }}"
 
     - name: Wait for Eureka service to be ready
-      uri:
+      ansible.builtin.uri:
         url: "http://localhost:8761/actuator/health"
         status_code: 200
         user: "{{ eureka_credentials.username }}"
         password: "{{ eureka_credentials.password }}"
-        force_basic_auth: yes
+        force_basic_auth: true
       register: health_check
       retries: 10
       delay: 5
-      until: 
+      until:
         - health_check.status == 200
         - (health_check.json.status | default('')) == 'UP'
       failed_when:
         - health_check.status != 200
-        - (health_check.json.status | default('')) != 'UP' 
+        - (health_check.json.status | default('')) != 'UP'
