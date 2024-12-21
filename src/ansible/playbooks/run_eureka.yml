@@ -1,5 +1,5 @@
 - name: Run Eureka server's docker compose
-  hosts: apt
+  hosts: eureka_server
   become: true
 
   tasks:

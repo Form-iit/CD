@@ -30,11 +30,12 @@ jobs:
         id: extract-eureka-ip
         run: |
           EUREKA_IP=$(jq -r '.eurekaIP' instances.json)
-          echo "Eureka IP is $EUREKA_IP"
+          API_GW_IP=$(jq -r '.apiGwIP' instances.json)
           echo "EUREKA_IP=$EUREKA_IP" >> $GITHUB_OUTPUT
-    
+          echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
     outputs:
       eurekaIP: ${{ steps.extract-eureka-ip.outputs.EUREKA_IP }}
+      apiGwIP: ${{ steps.extract-eureka-ip.outputs.API_GW_IP }}
   
   setup-ssh:
     needs: [get-eureka-host-ip]
@@ -49,7 +50,7 @@ jobs:
       - name: setup ssh keys and known hosts
         uses: ./.github/actions/setup-ssh
         with:
-          target_ips: ${{ needs.get-eureka-host-ip.outputs.eurekaIP }}
+          target_ips: ${{ needs.get-eureka-host-ip.outputs.apiGwIP }}
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
   
   get-ansible-inventory:
