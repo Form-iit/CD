@@ -71,6 +71,18 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           run_id: ${{ github.event.workflow_run.id }}
           workflow: "Ansible: setup docker on machines"
+      
+      - name: locate ansible inventory file
+        run: |
+          echo "inventory file is located at $GITHUB_WORKSPACE/inventory"
+
+      - name: ls
+        run: |
+          ls -l
+          echo ========================================
+          ls -l inventory
+          echo ========================================
+          ls -R 
   
   run-eureka:
     needs: get-ansible-inventory
