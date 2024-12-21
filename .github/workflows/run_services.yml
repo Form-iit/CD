@@ -83,6 +83,9 @@ jobs:
           ls -l inventory
           echo ========================================
           ls -R 
+          echo ========================================
+          echo "Inventory content:"
+          cat inventory
   
   run-eureka:
     needs: get-ansible-inventory
