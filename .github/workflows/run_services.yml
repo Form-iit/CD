@@ -94,7 +94,7 @@ jobs:
           name: .env
           github_token: ${{ secrets.GITHUB_TOKEN }}
           run_id: ${{ github.run_id }}  # Current run ID, not workflow_run.id
-          path: ./src/ansible/playbooks/.env
+          path: ./src/ansible/playbooks/
       
       - name: download ansible inventory
         uses: dawidd6/action-download-artifact@v6

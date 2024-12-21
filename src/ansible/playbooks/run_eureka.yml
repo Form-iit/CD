@@ -11,7 +11,7 @@
     - name: Copy .env file to target machine
       ansible.builtin.copy:
         src: .env
-        dest: "~/eureka/.env"
+        dest: "~/eureka"
         mode: '0644'
 
     - name: Pull Docker image from Docker Hub
