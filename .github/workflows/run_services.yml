@@ -89,4 +89,4 @@ jobs:
       
       - name: run eureka
         run: |
-          ansible-playbook -i ${{ needs.get-ansible-inventory.outputs.inventoryPath }} ansible/playbooks/run-eureka.yml
+          ansible-playbook -i ${{ needs.get-ansible-inventory.outputs.inventoryPath }} src/ansible/playbooks/run_eureka.yml
