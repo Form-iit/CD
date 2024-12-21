@@ -58,8 +58,6 @@ jobs:
       - setup-ssh
       - get-eureka-host-ip
     runs-on: ubuntu-latest
-    env:
-      INVENTORY_PATH: ansible/inventory
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -73,10 +71,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           run_id: ${{ github.event.workflow_run.id }}
           workflow: "Ansible: setup docker on machines"
-          path: $INVENTORY_PATH
-
-    outputs:
-      inventoryPath: ${{ env.INVENTORY_PATH }}
   
   run-eureka:
     needs: get-ansible-inventory
@@ -89,4 +83,4 @@ jobs:
       
       - name: run eureka
         run: |
-          ansible-playbook -i ${{ needs.get-ansible-inventory.outputs.inventoryPath }} src/ansible/playbooks/run_eureka.yml
+          ansible-playbook -i inventory src/ansible/playbooks/run_eureka.yml
