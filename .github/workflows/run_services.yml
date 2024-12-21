@@ -31,7 +31,7 @@ jobs:
         run: |
           EUREKA_IP=$(jq -r '.eurekaIP' instances.json)
           echo "Eureka IP is $EUREKA_IP"
-          echo $EUREKA_IP > $GITHUB_OUTPUT
+          echo "EUREKA_IP=$EUREKA_IP" >> $GITHUB_OUTPUT
     
     outputs:
       eurekaIP: ${{ steps.extract-eureka-ip.outputs.EUREKA_IP }}
