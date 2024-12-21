@@ -74,6 +74,7 @@ jobs:
           path: ./.env.template
           overwrite: true
           retention-days: 1
+          include-hidden-files: true
 
   run-eureka:
     needs: 
