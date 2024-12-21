@@ -37,26 +37,8 @@ jobs:
       eurekaIP: ${{ steps.extract-eureka-ip.outputs.EUREKA_IP }}
       apiGwIP: ${{ steps.extract-eureka-ip.outputs.API_GW_IP }}
   
-  setup-ssh:
-    needs: [get-eureka-host-ip]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
-      
-      - name: setup ssh keys and known hosts
-        uses: ./.github/actions/setup-ssh
-        with:
-          target_ips: ${{ needs.get-eureka-host-ip.outputs.apiGwIP }}
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-  
-  get-ansible-inventory:
-    needs: 
-      - setup-ssh
-      - get-eureka-host-ip
+  run-eureka:
+    needs: get-eureka-host-ip
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -71,32 +53,13 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           run_id: ${{ github.event.workflow_run.id }}
           workflow: "Ansible: setup docker on machines"
-      
-      - name: locate ansible inventory file
-        run: |
-          echo "inventory file is located at $GITHUB_WORKSPACE/inventory"
-          chmod 600 inventory
 
-      - name: ls
-        run: |
-          ls -l
-          echo ========================================
-          ls -l inventory
-          echo ========================================
-          ls -R 
-          echo ========================================
-          echo "Inventory content:"
-          cat inventory
-  
-  run-eureka:
-    needs: get-ansible-inventory
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: setup ssh keys and known hosts
+        uses: ./.github/actions/setup-ssh
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
-      
+          target_ips: ${{ needs.get-eureka-host-ip.outputs.apiGwIP }}
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
       - name: run eureka
         run: |
           ansible-playbook -i inventory src/ansible/playbooks/run_eureka.yml

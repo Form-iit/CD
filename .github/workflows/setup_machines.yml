@@ -49,6 +49,8 @@ jobs:
             with:
               name: instances
               path: instances.json
+              overwrite: true
+              retention-days: 1
       outputs:
           apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
           eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
@@ -89,6 +91,8 @@ jobs:
             with:
               name: ansible-inventory
               path: ansible/inventory
+              overwrite: true
+              retention-days: 1
 
       outputs:
         apiGwIP: ${{ steps.set-ip.outputs.API_GW_IP }}
@@ -151,6 +155,7 @@ jobs:
               name: ansible-inventory
               path: ansible/inventory
               overwrite: true
+              retention-days: 1
 
           - name: Run Ansible Playbook
             run: ansible-playbook -i ansible/inventory src/ansible/playbooks/setup_docker.yml
