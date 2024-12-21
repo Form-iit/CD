@@ -59,6 +59,7 @@ jobs:
           sed -i "s/placeholder_serviceurl/http:\/\/$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}\/eureka/g" .env.template
           sed -i "s/placeholder_username/${{ secrets.EUREKA_ADMIN_USERNAME }}/g" .env.template
           sed -i "s/placeholder_password/${{ secrets.EUREKA_ADMIN_PASSWORD }}/g" .env.template
+          mv .env.template .env
       
       - name: Debug file existence
         run: |
@@ -71,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: .env
-          path: ./.env.template
+          path: ./.env
           overwrite: true
           retention-days: 1
           include-hidden-files: true

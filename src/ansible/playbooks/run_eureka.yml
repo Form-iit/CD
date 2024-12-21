@@ -1,6 +1,5 @@
 - name: Run Eureka server's docker compose
   hosts: eureka_server
-  become: true
 
   tasks:
     - name: Ensure eureka directory exists
