@@ -10,7 +10,7 @@
       changed_when: false
 
     - name: Check if Docker Compose is installed
-      ansible.builtin.command: docker-compose --version
+      ansible.builtin.command: docker compose version  # Changed this
       register: compose_check
       ignore_errors: true
       changed_when: false
@@ -113,7 +113,7 @@
           - docker-compose-plugin
         state: present
         update_cache: true
-      when: docker_check.rc != 0
+      when: docker_check.rc != 0 or compose_check.rc != 0
 
     - name: Ensure Docker service is started and enabled
       ansible.builtin.systemd:
@@ -132,18 +132,11 @@
       ansible.builtin.meta: reset_connection
       when: docker_check.rc != 0
 
-    - name: "Download Docker Compose"
-      ansible.builtin.get_url:
-        url: "https://github.com/docker/compose/releases/latest/download/docker-compose-{{ ansible_system | lower }}-{{ ansible_architecture }}"
-        dest: /usr/local/bin/docker-compose
-        mode: '0755'
-      when: compose_check.rc != 0
-
     - name: Final version check
       ansible.builtin.debug:
         msg:
           - "Installation complete. Current versions:"
           - "Docker: {{ lookup('pipe', 'docker --version') }}"
-          - "Docker Compose: {{ lookup('pipe', 'docker-compose --version') }}"
+          - "Docker Compose: {{ lookup('pipe', 'docker compose version') }}"
           - "Git: {{ lookup('pipe', 'git --version') }}"
       when: install_required
