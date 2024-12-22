@@ -1,5 +1,5 @@
 - name: "Apply Security Updates"
-  hosts: api_gw,eureka_server
+  hosts: api_gw,eureka_server,config-server
   become: true
 
   tasks:
