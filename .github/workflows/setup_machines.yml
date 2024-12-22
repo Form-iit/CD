@@ -33,15 +33,17 @@ jobs:
               # Use jq to extract IPs from within the parsed outputs
               API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
               EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
-              
+              CONFIG_SERVER_IP=$(jq -r '.[] | select(.name == "config_server_instance_details") | .value.public_ip' terraform-outputs.json)
+
               # Save IPs to environment variables
               echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
               echo "EUREKA_SERVER_IP=$EUREKA_SERVER_IP" >> $GITHUB_OUTPUT
+              echo "CONFIG_SERVER_IP=$CONFIG_SERVER_IP" >> $GITHUB_OUTPUT
           
           # Add this new step to save outputs to a file
           - name: Save IPs as json
             run: |
-              echo "{\"apiGwIP\":\"${{ steps.parse-outputs.outputs.API_GW_IP }}\",\"eurekaIP\":\"${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}\"}" > instances.json
+              echo "{\"apiGwIP\":\"${{ steps.parse-outputs.outputs.API_GW_IP }}\",\"eurekaIP\":\"${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}\",\"configServerIp\":\"${{steps.parse-outputs.outputs.CONFIG_SERVER_IP}}\""}" > instances.json
 
           # Upload the outputs as an artifact
           - name: Upload outputs
@@ -53,7 +55,8 @@ jobs:
               retention-days: 1
       outputs:
           apiGwIP: ${{ steps.parse-outputs.outputs.API_GW_IP }}
-          eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }} 
+          eurekaIP: ${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}
+          configServerIp: ${{ steps.parse-outputs.outputs.CONFIG_SERVER_IP }}
         
     setup-ansible-inventory:
       needs: process-terraform-outputs
@@ -77,7 +80,7 @@ jobs:
               API_GW_IP=${{ needs.process-terraform-outputs.outputs.apiGwIP }}
               
               # Replace placeholders within the inventory
-              INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_SERVER_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.eurekaIP }}/g" | sed "s/API_GW_USER/${{ secrets.API_GW_HOST_USERNAME }}/g" | sed "s/EUREKA_USER/${{ secrets.EUREKA_HOST_USERNAME }}/g") 
+              INVENTORY=$(echo "$INVENTORY_TEMPLATE" | sed "s/API-GW_IP_PLACEHOLDER/$API_GW_IP/g" | sed "s/EUREKA_SERVER_IP_PLACEHOLDER/${{ needs.process-terraform-outputs.outputs.eurekaIP }}/g" | sed "s/API_GW_USER/${{ secrets.API_GW_HOST_USERNAME }}/g" | sed "s/EUREKA_USER/${{ secrets.EUREKA_HOST_USERNAME }}/g" | sed "s/CONFIG_SERVER_IP_PLACEHOLDER/${{needs.process-terraform-outputs.outputs.configServerIp}}/g" | sed "s/CONFIG_SERVER_USER/${{ secrets.CONFIG_SERVER_USER }}/g") 
               
               # Write the final inventory file
               echo "$INVENTORY" > ansible/inventory
