@@ -89,3 +89,41 @@ resource "aws_security_group" "eureka_security_group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+resource "aws_security_group" "config_server_security_group" {
+  name_prefix = "config-server-sg"
+  vpc_id      = aws_vpc.Formiit-VPC.id
+
+  ingress {
+    description = "SSH from public subnet"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = [aws_subnet.public_subnet.cidr_block]
+  }
+
+  ingress {
+    description = "ICMP from public subnet"
+    from_port = -1
+    to_port = -1
+    protocol = "icmp"
+    cidr_blocks = [ aws_subnet.public_subnet.cidr_block ]
+  }
+
+  ingress {
+    description = "Config server ports from public subnet"
+    from_port   = 8888
+    to_port     = 8888
+    protocol    = "tcp"
+    security_groups = [ aws_security_group.api-gw-sg.id ]
+  }
+
+  # Outbound Rules
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+}
