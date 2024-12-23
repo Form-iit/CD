@@ -1,5 +1,5 @@
 - name: Run Eureka server's docker compose
-  hosts: config-server
+  hosts: config_server
 
   tasks:
     - name: Ensure config directory exists
