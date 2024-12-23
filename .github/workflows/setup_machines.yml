@@ -33,7 +33,7 @@ jobs:
               # Use jq to extract IPs from within the parsed outputs
               API_GW_IP=$(jq -r '.[] | select(.name == "apiGw_instance_details") | .value.public_ip' terraform-outputs.json)
               EUREKA_SERVER_IP=$(jq -r '.[] | select(.name == "eureka_instance_details") | .value.private_ip' terraform-outputs.json)
-              CONFIG_SERVER_IP=$(jq -r '.[] | select(.name == "config_server_instance_details") | .value.public_ip' terraform-outputs.json)
+              CONFIG_SERVER_IP=$(jq -r '.[] | select(.name == "config_server_instance_details") | .value.private_ip' terraform-outputs.json)
 
               # Save IPs to environment variables
               echo "API_GW_IP=$API_GW_IP" >> $GITHUB_OUTPUT
@@ -43,7 +43,7 @@ jobs:
           # Add this new step to save outputs to a file
           - name: Save IPs as json
             run: |
-              echo "{\"apiGwIP\":\"${{ steps.parse-outputs.outputs.API_GW_IP }}\",\"eurekaIP\":\"${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}\",\"configServerIp\":\"${{steps.parse-outputs.outputs.CONFIG_SERVER_IP}}\""}" > instances.json
+              echo "{\"apiGwIP\":\"${{ steps.parse-outputs.outputs.API_GW_IP }}\",\"eurekaIP\":\"${{ steps.parse-outputs.outputs.EUREKA_SERVER_IP }}\",\"configServerIp\":\"${{steps.parse-outputs.outputs.CONFIG_SERVER_IP}}\"}" > instances.json
 
           # Upload the outputs as an artifact
           - name: Upload outputs
