@@ -51,7 +51,7 @@ jobs:
 
       - name: Download env template
         run: |
-          wget https://raw.githubusercontent.com/Form-iit/service-discovery/refs/heads/main/docker-compose.template.env -O .env.template
+          wget https://raw.githubusercontent.com/Form-iit/service-discovery/main/docker-compose.template.env -O .env.template
         
       - name: Prepare environment file
         env:
@@ -123,7 +123,7 @@ jobs:
 
       - name: Download env template
         run: |
-          wget https://raw.githubusercontent.com/Form-iit/Config-service/refs/heads/main/docker-compose.template.env -O .env.template
+          wget https://raw.githubusercontent.com/Form-iit/Config-service/main/docker-compose.template.env -O .env.template
           
       - name: Prepare environment file
         env:
