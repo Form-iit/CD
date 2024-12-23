@@ -135,7 +135,7 @@ jobs:
           sed -i "s/placeholder_username/${{ secrets.CONFIG_SERVER_USERNAME }}/g" .env.template
           sed -i "s/placeholder_password/${{ secrets.CONFIG_SERVER_PASSWORD }}/g" .env.template
           sed -i "s|placeholder_config_server_git_uri|https://github.com/Form-iit/Config-vault|g" .env.template
-          sed -i "s|placeholder_serviceurl|http://$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}/eureka|g" .env.template
+          sed -i "s|placeholder_serviceurl|http://${{secrets.EUREKA_ADMIN_USERNAME}}:${{secrets.EUREKA_ADMIN_PASSWORD}}@$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}/eureka|g" .env.template
           mv .env.template .env
           
       - name: Upload env file
