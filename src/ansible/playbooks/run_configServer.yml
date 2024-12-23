@@ -10,13 +10,9 @@
 
     - name: Copy .env file to target machine
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/.config.env"
+        src: "{{ playbook_dir }}/.env"
         dest: "~/config-server"
         mode: '0644'
-
-    - name: Rename the .env file
-      ansible.builtin.command:
-        cmd: mv ~/config-server/.config.env ~/config-server/.env
 
     - name: Pull Docker image from Docker Hub
       community.docker.docker_image:

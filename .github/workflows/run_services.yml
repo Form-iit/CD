@@ -179,7 +179,7 @@ jobs:
         with:
           target_ips: ${{ needs.get-hosts-IPs.outputs.apiGwIP }}
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-      
+
       - name: run config server
         run: |
           ansible-playbook -i inventory src/ansible/playbooks/run_configServer.yml
