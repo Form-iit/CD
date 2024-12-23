@@ -10,7 +10,7 @@
 
     - name: Copy .env file to target machine
       ansible.builtin.copy:
-        src: .config.env
+        src: "{{ playbook_dir }}/.config.env"
         dest: "~/config-server"
         mode: '0644'
 
