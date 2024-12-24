@@ -56,12 +56,12 @@ jobs:
       - name: Prepare environment file
         env:
           eurekaIP: ${{ needs.get-hosts-IPs.outputs.eurekaIP }}
-          encoded_password : ${{ secrets.EUREKA_ADMIN_PASSWORD }}
+          encoded_password: ${{ secrets.EUREKA_ADMIN_PASSWORD }}
         run: |
           encoded_password=$(echo -n "${encoded_password}" | jq -sRr @uri)
           sed -i "s/placeholder_server_port/${{ secrets.EUREKA_SERVER_PORT }}/g" .env.template
           sed -i "s/placeholder_ip_address/$eurekaIP/g" .env.template
-          sed -i "s|placeholder_serviceurl|http://${{ secrets.EUREKA_ADMIN_USERNAME }}:$encoded_password@$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}\/eureka/g" .env.template
+          sed -i "s|placeholder_serviceurl|http://${{ secrets.EUREKA_ADMIN_USERNAME }}:$encoded_password@$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}/eureka|g" .env.template
           sed -i "s/placeholder_username/${{ secrets.EUREKA_ADMIN_USERNAME }}/g" .env.template
           sed -i "s/placeholder_password/${{ secrets.EUREKA_ADMIN_PASSWORD }}/g" .env.template
           mv .env.template .env
@@ -139,7 +139,7 @@ jobs:
           sed -i "s/placeholder_username/${{ secrets.CONFIG_SERVER_USERNAME }}/g" .env.template
           sed -i "s/placeholder_password/${{ secrets.CONFIG_SERVER_PASSWORD }}/g" .env.template
           sed -i "s|placeholder_config_server_git_uri|https://github.com/Form-iit/Config-vault|g" .env.template
-          sed -i "s|placeholder_serviceurl|http://${{secrets.EUREKA_ADMIN_USERNAME}}:$encoded_password@$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}/eureka|g" .env.template
+          sed -i "s|placeholder_serviceurl|http://${{ secrets.EUREKA_ADMIN_USERNAME }}:$encoded_password@$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}/eureka|g" .env.template
           mv .env.template .env
           
       - name: Upload env file
