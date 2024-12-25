@@ -62,7 +62,7 @@ resource "aws_security_group" "eureka_security_group" {
     from_port = 22
     to_port = 22
     protocol = "tcp"
-    cidr_blocks = [aws_security_group.api-gw-sg.id]
+    security_groups =  [aws_security_group.api-gw-sg.id]
   }
 
   ingress {
