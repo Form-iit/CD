@@ -2,55 +2,66 @@
   hosts: api_gw
 
   tasks:
-    - name: Ensure apiGw directory exists
-      file:
-        path: "~/apiGw"
-        state: directory
-        mode: '0755'
-    
-    - name: Copy .env file to target machine
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/.env"
-        dest: "~/apiGw"
-        mode: '0644'
 
-    - name: Pull Docker image from Docker Hub
-      community.docker.docker_image:
-        name: "diamobachar/api-gw-service:latest"
-        source: pull
-    
-    - name: Fetch Docker Compose file from GitHub
-      ansible.builtin.get_url:
-        url: "https://raw.githubusercontent.com/Form-iit/api-gateway/main/docker-compose.yml"
-        dest: "~/apiGw/docker-compose.yml"
-        mode: '0644'
-    
-    - name: Modify Docker Compose file to use pulled image
-      ansible.builtin.lineinfile:
-        path: "~/apiGw/docker-compose.yml"
-        regexp: '^(\s*)build:'
-        line: '\1image: diamobachar/api-gw-service:latest'
-        backrefs: true
-        state: present
-    
-    - name: Remove build context section if exists
-      ansible.builtin.lineinfile:
-        path: "~/apiGw/docker-compose.yml"
-        regexp: '^\s*context:'
-        state: absent
-    
-    - name: Remove dockerfile section if exists
-      ansible.builtin.lineinfile:
-        path: "~/apiGw/docker-compose.yml"
-        regexp: '^\s*dockerfile:'
-        state: absent
-    
-    - name: Start Docker Compose
-      community.docker.docker_compose_v2:
-        project_src: "~/apiGw"
-        env_files: ["~/apiGw/.env"]
-        pull: always
-        state: present
+    - name: Check if apiGw container exists and is running
+      community.docker.docker_container_info:
+        name: api-gateway
+      register: apiGw_container
+
+    - name: Proceed with the deployment if apiGw container is not running
+      when: not apiGw_container.exists or apiGw_container.container.State.Status != 'running'
+      ansible.builtin.block:
+        tasks:
+
+          - name: Ensure apiGw directory exists
+            file:
+              path: "~/apiGw"
+              state: directory
+              mode: '0755'
+          
+          - name: Copy .env file to target machine
+            ansible.builtin.copy:
+              src: "{{ playbook_dir }}/.env"
+              dest: "~/apiGw"
+              mode: '0644'
+
+          - name: Pull Docker image from Docker Hub
+            community.docker.docker_image:
+              name: "diamobachar/api-gw-service:latest"
+              source: pull
+          
+          - name: Fetch Docker Compose file from GitHub
+            ansible.builtin.get_url:
+              url: "https://raw.githubusercontent.com/Form-iit/api-gateway/main/docker-compose.yml"
+              dest: "~/apiGw/docker-compose.yml"
+              mode: '0644'
+          
+          - name: Modify Docker Compose file to use pulled image
+            ansible.builtin.lineinfile:
+              path: "~/apiGw/docker-compose.yml"
+              regexp: '^(\s*)build:'
+              line: '\1image: diamobachar/api-gw-service:latest'
+              backrefs: true
+              state: present
+          
+          - name: Remove build context section if exists
+            ansible.builtin.lineinfile:
+              path: "~/apiGw/docker-compose.yml"
+              regexp: '^\s*context:'
+              state: absent
+          
+          - name: Remove dockerfile section if exists
+            ansible.builtin.lineinfile:
+              path: "~/apiGw/docker-compose.yml"
+              regexp: '^\s*dockerfile:'
+              state: absent
+          
+          - name: Start Docker Compose
+            community.docker.docker_compose_v2:
+              project_src: "~/apiGw"
+              env_files: ["~/apiGw/.env"]
+              pull: always
+              state: present
 
     - name: Wait for api gateway to be ready
       ansible.builtin.uri:
