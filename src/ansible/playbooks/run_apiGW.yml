@@ -1,7 +1,5 @@
 - name: Run Api Gateway's docker compose
   hosts: api_gw
-  become: true
-  become_user: ec2-user
 
   tasks:
     - name: Ensure apiGw directory exists
