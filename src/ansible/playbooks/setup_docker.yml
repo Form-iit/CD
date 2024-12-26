@@ -37,11 +37,6 @@
         update_cache: true
       when: install_required
 
-    - name: Upgrade all packages
-      ansible.builtin.apt:
-        upgrade: dist
-      when: install_required
-
     - name: "Install Git"
       ansible.builtin.apt:
         name: "git"
