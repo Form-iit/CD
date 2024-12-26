@@ -187,4 +187,49 @@ jobs:
       - name: run config server
         run: |
           ansible-playbook -i inventory src/ansible/playbooks/run_configServer.yml
+
+  prep-api-gw:
+    runs-on: ubuntu-latest
+    needs: 
+      - get-hosts-IPs
+      - run-config-server
+      - run-eureka
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
       
+      - name: Download env template
+        run: |
+          wget https://raw.githubusercontent.com/Form-iit/api-gateway/main/docker-compose.template.env -O .env.template
+
+      - name: Prepare environment file
+        env:
+          eurekaIP: ${{ needs.get-hosts-IPs.outputs.eurekaIP }}
+          encoded_password: ${{ secrets.EUREKA_ADMIN_PASSWORD }}
+        run: |
+          encoded_password=$(echo -n "${encoded_password}" | jq -sRr @uri)
+          basicAuth=$(printf '%s:%s' "${{ secrets.EUREKA_ADMIN_USERNAME }}" "${{ secrets.EUREKA_ADMIN_PASSWORD }}" | base64 2>/dev/null)
+          sed -i "s|active_profile_template|${{ secrets.API_GW_ACTIVE_PROFILE }}|g" .env.template
+          sed -i "s|config_server_url_template|https://github.com/Form-iit/Config-vault|g" .env.template
+          sed -i "s|cloud_config_username_template|${{ secrets.CONFIG_SERVER_USERNAME }}|g" .env.template
+          sed -i "s|cloud_config_password_template|${{ secrets.CONFIG_SERVER_PASSWORD }}|g" .env.template
+          sed -i "s|eureka_client_serviceurl_defaultzone_template|http://${{ secrets.EUREKA_ADMIN_USERNAME }}:$encoded_password@$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}/eureka|g" .env.template
+          sed -i "s|eureka_instance_IP_address_template|$eurekaIP|g" .env.template
+          sed -i "s|eureka_server_url_template|http://$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}|g" .env.template
+          sed -i "s|eureka_basic_auth_template|Basic $basicAuth|g" .env.template
+          mv .env.template .env
+
+      - name: show env file
+        run: |
+          cat .env
+          
+      - name: Upload env file
+        uses: actions/upload-artifact@v4
+        with:
+          name: .config.env
+          path: ./.env
+          overwrite: true
+          retention-days: 1
+          include-hidden-files: true
