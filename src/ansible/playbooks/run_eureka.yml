@@ -10,7 +10,7 @@
 
     - name: Proceed with the deployment if eureka container is not running
       when: not eureka_container.exists or eureka_container.container.State.Status != 'running'      
-      ansible.builtin.block:
+      block:
         tasks:
 
           - name: Ensure eureka directory exists

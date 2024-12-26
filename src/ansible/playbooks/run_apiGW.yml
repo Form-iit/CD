@@ -10,7 +10,7 @@
 
     - name: Proceed with the deployment if apiGw container is not running
       when: not apiGw_container.exists or apiGw_container.container.State.Status != 'running'
-      ansible.builtin.block:
+      block:
         tasks:
 
           - name: Ensure apiGw directory exists
