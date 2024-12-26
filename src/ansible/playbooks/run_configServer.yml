@@ -6,10 +6,10 @@
     - name: Check if config-server container exists and is running
       community.docker.docker_container_info:
         name: config-server
-      register: config-server_container
+      register: config_server_container
 
     - name: Proceed with the deployment if config-server container is not running
-      when: not config-server_container.exists or config-server_container.container.State.Status != 'running'      
+      when: not config_server_container.exists or config_server_container.container.State.Status != 'running'      
       block:
         - name: Ensure config directory exists
           ansible.builtin.file:
