@@ -202,12 +202,13 @@ jobs:
       - name: Prepare environment file
         env:
           eurekaIP: ${{ needs.get-hosts-IPs.outputs.eurekaIP }}
+          configServerIp: ${{ needs.get-hosts-IPs.outputs.configServerIp }}
           encoded_password: ${{ secrets.EUREKA_ADMIN_PASSWORD }}
         run: |
           encoded_password=$(echo -n "${encoded_password}" | jq -sRr @uri)
           basicAuth=$(printf '%s:%s' "${{ secrets.EUREKA_ADMIN_USERNAME }}" "${{ secrets.EUREKA_ADMIN_PASSWORD }}" | base64 2>/dev/null)
           sed -i "s|active_profile_template|${{ secrets.API_GW_ACTIVE_PROFILE }}|g" .env.template
-          sed -i "s|config_server_url_template|https://github.com/Form-iit/Config-vault|g" .env.template
+          sed -i "s|config_server_url_template|http://$configServerIp:${{ secrets.CONFIG_SERVER_PORT }}|g" .env.template
           sed -i "s|cloud_config_username_template|${{ secrets.CONFIG_SERVER_USERNAME }}|g" .env.template
           sed -i "s|cloud_config_password_template|${{ secrets.CONFIG_SERVER_PASSWORD }}|g" .env.template
           sed -i "s|eureka_client_serviceurl_defaultzone_template|http://${{ secrets.EUREKA_ADMIN_USERNAME }}:$encoded_password@$eurekaIP:${{ secrets.EUREKA_SERVER_PORT }}/eureka|g" .env.template
@@ -262,6 +263,6 @@ jobs:
           target_ips: ${{ needs.get-hosts-IPs.outputs.apiGwIP }}
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: run config server
+      - name: run api gateway service
         run: |
           ansible-playbook -i inventory src/ansible/playbooks/run_apiGW.yml
